@@ -1,6 +1,7 @@
 #ifndef CHIP8_HPP
 #define CHIP8_HPP
 #include <string>
+#include "Timer.hpp"
 #include "Stack.hpp"
 #include "VarRegs.hpp"
 
@@ -24,16 +25,22 @@ private:
     Display m_display{};
     unsigned char* m_PC{};
     unsigned short m_I{};
-    Stack stack{};
-    unsigned char delay_timer{};
-    unsigned char sound_timer{}; 
+    Stack m_stack{};
+    Timer m_delay_timer{};
+    Timer m_sound_timer{}; 
     VarRegs m_regs{};
+    bool m_key_states[0xF + 1]{};
+    bool m_legacy_beh{true};
 
+    void jumpTo(unsigned short location);
+    void writeToMemory(unsigned short location, unsigned char value);
+    unsigned char readFromMemory(unsigned short location);
+    unsigned short getCurrentPCAddr();
     unsigned short fetch();
     void decodeExecute(unsigned short operation);
-
 public:
     Chip8();
+    void setLegacyBeh(bool value);
     bool load(const std::string& path);
     void emulateStep();
     bool getPixel(unsigned char x, unsigned char y);

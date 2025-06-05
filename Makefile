@@ -12,7 +12,7 @@ FLAGS = -Wall -Wextra -g -std=c++23
 TARGET = output_build
 
 # Source file list
-SOURCES = main.cpp Stack.cpp Chip8.cpp VarRegs.cpp
+SOURCES = main.cpp Stack.cpp Chip8.cpp VarRegs.cpp Timer.cpp
 
 # Additional libraries
 LIBS = -lSDL2

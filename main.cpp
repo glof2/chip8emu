@@ -42,8 +42,9 @@ int main()
 
     // Prepare emulator
     Chip8 emulator{};
+    emulator.setLegacyBeh(true);
     std::cout << "Loading ibm logo ROM...\n";
-    if(!emulator.load("ibm.ch8"))
+    if(!emulator.load("test_opcode.ch8"))
     {
         std::cout << "Failed to load ROM!\n";
         return -1;
@@ -101,6 +102,7 @@ int main()
 
         // Present
         SDL_RenderPresent(renderer);
+        SDL_Delay(1000/70);
     }
 
 
