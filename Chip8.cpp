@@ -477,6 +477,7 @@ void Chip8::decodeExecute(unsigned short operation)
                     }
                     if(key == 0xF+1)
                     {
+                        std::cout << "WAITING FOR INPUT!\n"; 
                         m_PC -= 2;
                     }
                     else
@@ -554,4 +555,9 @@ void Chip8::emulateStep()
 bool Chip8::getPixel(unsigned char x, unsigned char y)
 {
     return (m_display.data)[y][x];
+}
+
+void Chip8::updateKeyState(unsigned char which, bool state)
+{
+    m_key_states[which] = state;
 }

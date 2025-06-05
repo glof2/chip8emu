@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 #include <SDL2/SDL.h>
 #include "Chip8.hpp"
 
@@ -12,6 +13,19 @@ void displaySDLError(const std::string& msg)
 
 int main()
 {
+    // Prepare emulator
+    Chip8 emulator{};
+    emulator.setLegacyBeh(true);
+    std::cout << "Input rom file directory: ";
+    std::string rom_dir{};
+    std::cin >> rom_dir;
+    if(!emulator.load(rom_dir))
+    {
+        std::cout << "Failed to load ROM!\n";
+        return -1;
+    }
+    std::cout << "Loaded ROM succesfuly!\n";
+
     // Move this to a function for later cleanup (in case it fails in the middle!)
     // Prepare SDL
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -40,27 +54,65 @@ int main()
         return -1;
     }
 
-    // Prepare emulator
-    Chip8 emulator{};
-    emulator.setLegacyBeh(true);
-    std::cout << "Loading ibm logo ROM...\n";
-    if(!emulator.load("test_opcode.ch8"))
-    {
-        std::cout << "Failed to load ROM!\n";
-        return -1;
-    }
-    std::cout << "Loaded ibm logo ROM succesfuly!\n";
-
+    // Vars for loop
     bool run{true};
+    const std::map<SDL_Keycode, unsigned char> key_translations
+    {
+        {SDLK_1, 0x0},
+        {SDLK_2, 0x1},
+        {SDLK_3, 0x2},
+        {SDLK_4, 0x3},
+        {SDLK_q, 0x4},
+        {SDLK_w, 0x5},
+        {SDLK_e, 0x6},
+        {SDLK_r, 0x7},
+        {SDLK_a, 0x8},
+        {SDLK_s, 0x9},
+        {SDLK_d, 0xA},
+        {SDLK_f, 0xB},
+        {SDLK_z, 0xC},
+        {SDLK_x, 0xD},
+        {SDLK_c, 0xE},
+        {SDLK_v, 0xF},
+    };
+
     while (run)
     {
         // -- Poll Events --
         SDL_Event ev{};
         while(SDL_PollEvent(&ev))
         {
-            if(ev.type == SDL_QUIT)
+            switch (ev.type)
             {
-                run = false;
+                case SDL_QUIT:
+                {
+                    run = false;
+                    break;
+                }
+                case SDL_KEYDOWN:
+                {
+                    for(std::pair<SDL_Keycode, unsigned char> key : key_translations)
+                    {
+                        if(key.first == ev.key.keysym.sym)
+                        {
+                            emulator.updateKeyState(key.second, true);
+                            break;
+                        }
+                    }
+                    break;
+                }
+                case SDL_KEYUP:
+                {
+                    for(std::pair<SDL_Keycode, unsigned char> key : key_translations)
+                    {
+                        if(key.first == ev.key.keysym.sym)
+                        {
+                            emulator.updateKeyState(key.second, false);
+                            break;
+                        }
+                    }
+                    break;
+                }
             }
         }
 

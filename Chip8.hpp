@@ -44,6 +44,7 @@ public:
     bool load(const std::string& path);
     void emulateStep();
     bool getPixel(unsigned char x, unsigned char y);
+    void updateKeyState(unsigned char which, bool state);
 };
 
 #endif
