@@ -1,4 +1,4 @@
-#include "Timer.hpp"
+#include "../header/Timer.hpp"
 #include <iostream>
 
 int64_t Timer::getTime()

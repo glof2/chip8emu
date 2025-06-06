@@ -2,7 +2,7 @@
 #include <map>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
-#include "Chip8.hpp"
+#include "header/Chip8.hpp"
 
 #define RENDER_SCALE 16
 

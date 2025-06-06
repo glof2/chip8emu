@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iomanip>
 #include <random>
-#include "Chip8.hpp"
+#include "../header/Chip8.hpp"
 
 #define CHIP8_FONT_BEGIN 0
 

@@ -1,4 +1,4 @@
-#include "Stack.hpp"
+#include "../header/Stack.hpp"
 #include <iostream>
 
 unsigned short Stack::pop()
