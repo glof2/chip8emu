@@ -31,17 +31,68 @@ private:
     KeyState m_key_states[Chip8Const::buttons];
     bool m_legacy_beh{true};
 
-    void jumpTo(Chip8_t::Word location); 
+
+    // --- Private member functions ---
+    
+    //  Name:           jumpTo
+    //  Description:    makes the current instruction pointer jump to provided location
+    //  Arguments:      location - the location in memory to jump to
+    void jumpTo(Chip8_t::Word location);
+
+    //  Name:           fetch
+    //  Description:    returns the byte code for the current instruction
+    //  Return:         the byte code of the instruction that the instruction pointer is currently on
     Chip8_t::Word fetch();
+
+    //  Name:           decodeExecute
+    //  Description:    decodes and executes the instruction given
+    //  Arguments:      operation - the instruction to decode and execute
     void decodeExecute(Chip8_t::Word operation);
-public:
+
+public:  
+    // --- Constructors ---
+
+    //  Description: Returns a Chip8 emulator class object, to load a ROM use Chip8::load
     Chip8();
+
+    // --- Member functions ---
+
+    //  Name:           setLegacyBeh
+    //  Description:    switches the current legacy behaviour settings
+    //  Arguments:      value - the value to switch to: true - legacy behaviour is on, false - legacy behaviour is off
     void setLegacyBeh(bool value);
+
+    //  Name:           load
+    //  Description:    loads the file in provided path to the memory, the file should be a CHIP8 rom file
+    //  Arguments:      path - the path to the CHIP8 file
     bool load(const std::string& path);
+
+    //  Name:           emulateStep
+    //  Description:    emulates a single instruction (fetch, decode and execute) and updates the emulator state
     void emulateStep();
+
+    //  Name:           getPixel()
+    //  Description;    returns the Display pixel state for the provided coordinates
+    //  Arguments:      x - the X coordinate
+    //                  y - the Y coordinate
+    //  Return:         the state of the pixel at provided coordinates
     bool getPixel(Chip8_t::Byte x, Chip8_t::Byte y);
+
+    //  Name:           setKeyState
+    //  Description:    sets the state of the provided key
+    //  Arguments:      which - the key to set the state of
+    //                  state - the state to set the key to
     void setKeyState(Chip8_t::Byte which, KeyState state);
+
+    //  Name:           getKeyState
+    //  Description:    returns the state of the provided key
+    //  Arguments:      which - the key to set the state of
+    //  Return:         the state of the key
     KeyState getKeyState(Chip8_t::Byte which);
+
+    //  Name:           shouldBeep
+    //  Description:    returns whether or not the emulator thinks that sound should be playing
+    //  Return:         true if emulator should be emiting sound, false otherwise
     bool shouldBeep();
 };
 

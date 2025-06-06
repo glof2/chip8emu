@@ -4,76 +4,7 @@
 #include <random>
 #include "../header/Chip8.hpp"
 
-#define CHIP8_FONT_BEGIN 0
-
-Chip8::Chip8() : 
-    m_memory{Chip8Const::mem_size},
-    m_display{Chip8Const::screen_width, Chip8Const::screen_height},
-    m_PC{},
-    m_I{},
-    m_stack{},
-    m_delay_timer{},
-    m_sound_timer{}, 
-    m_regs{},
-    m_key_states{},
-    m_legacy_beh{true}
-{
-    // Defaults vars
-
-
-    // Load fonts
-    Chip8_t::Byte m_font[]
-    {
-        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-        0x20, 0x60, 0x20, 0x20, 0x70, // 1
-        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-    };
-
-    for(int i{}; i < 80; ++i)
-    {
-        m_memory.write(CHIP8_FONT_BEGIN + i,  m_font[i]);
-    }
-
-    // Set PC
-    m_PC = 0x200;
-}
-
-bool Chip8::load(const std::string& path)
-{
-    std::ifstream file{path, std::ios::binary};
-    if(!file.is_open())
-    {
-        return false;
-    }
-
-    Chip8_t::Byte byte{};
-    Chip8_t::Word index{0x200};
-    while(file.read(reinterpret_cast<char*>(&byte), 1))
-    {
-        m_memory.write(index, byte);
-        ++index;
-        if(index >= 4096)
-        {
-            break;
-        }
-    }
-
-    file.close();
-    return true;
-}
+// --- Private member functions ---
 
 void Chip8::jumpTo(Chip8_t::Word location)
 {
@@ -155,7 +86,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
         {
             // For now 3XNN - Skip one instruction if value in VX == NN
             Chip8_t::Byte val_1{ m_regs.read(nibbles[1]) };
-            Chip8_t::Byte val_2{ nibbles[2] * 0x10 + nibbles[3] };
+            Chip8_t::Byte val_2{ (Chip8_t::Byte)(nibbles[2] * 0x10 + nibbles[3]) };
 
             if(val_1 == val_2)
             {
@@ -167,7 +98,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
         {
             // For now 4XNN - Skip one instruction if value in VX != NN
             Chip8_t::Byte val_1{ m_regs.read(nibbles[1]) };
-            Chip8_t::Byte val_2{ nibbles[2] * 0x10 + nibbles[3] };
+            Chip8_t::Byte val_2{ (Chip8_t::Byte)(nibbles[2] * 0x10 + nibbles[3]) };
 
             if(val_1 != val_2)
             {
@@ -198,7 +129,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
         {
             // For now 7XNN - add NN to register VX
             Chip8_t::Byte value{ (Chip8_t::Byte)(m_regs.read(nibbles[1])) };
-            Chip8_t::Byte add{ nibbles[2] * 0x10 + nibbles[3]  };
+            Chip8_t::Byte add{ (Chip8_t::Byte) (nibbles[2] * 0x10 + nibbles[3]) };
             m_regs.write(nibbles[1], value + add);
             break;
         }
@@ -222,7 +153,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
             Chip8_t::Byte set_value{};
             Chip8_t::Byte vx{ m_regs.read(nibbles[1]) };
             Chip8_t::Byte vy{ m_regs.read(nibbles[2]) };
-            bool vf_value{ m_regs.read(0xF) };
+            bool vf_value{ (bool) (m_regs.read(0xF)) };
             switch (nibbles[3])
             {
                 case 0x0:
@@ -363,8 +294,8 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
         case 0xC:
         {
             // CXNN - generates a random number and binary ANDs it with NN, then puts the result in VX
-            Chip8_t::Byte random{ rand() % 256 };
-            Chip8_t::Byte value{ nibbles[2]* 0x10 + nibbles[3] * 0x1 };
+            Chip8_t::Byte random{ (Chip8_t::Byte) (rand() % 256) };
+            Chip8_t::Byte value{ (Chip8_t::Byte) (nibbles[2]* 0x10 + nibbles[3] * 0x1) };
             m_regs.write(nibbles[1], random & value);
             break;
         }
@@ -390,9 +321,9 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
                 for(char i{7}; i >= 0; --i)
                 {
                     Chip8_t::Byte bit_i{ (Chip8_t::Byte)(7 - i) };
-                    Chip8_t::Byte mask{ 1 << i};
-                    Chip8_t::Byte masked_number{ m_memory.read(m_I + byte_i) & mask };
-                    bool bit{ masked_number >> i };
+                    Chip8_t::Byte mask{ (Chip8_t::Byte) (1 << i) };
+                    Chip8_t::Byte masked_number{ (Chip8_t::Byte) (m_memory.read(m_I + byte_i) & mask) };
+                    bool bit{ (bool) ((Chip8_t::Byte)(masked_number >> i)) };
                     
                     // Exit condition
                     if ( x + bit_i >= m_display.getWidth())
@@ -421,7 +352,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
         {
             // EX9E - Skip one instruction if the key corresponding to value in VX is pressed
             // EXA1 - Skip one instruction if the key corresponding to value in VX is not pressed
-            Chip8_t::Byte val{ nibbles[2] * 0x10 + nibbles[3] * 0x1 };
+            Chip8_t::Byte val{ (Chip8_t::Byte) (nibbles[2] * 0x10 + nibbles[3] * 0x1) };
             Chip8_t::Byte key{ m_regs.read(nibbles[1]) };
             if (key > 0xF)
             {
@@ -460,7 +391,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
             // FX33 - Take the number in VX, divide to 3 dec numbers (139 - 1, 3, 9), then store them in I, I+1, I+2
             // FX55 - Set memory in I, to I+X with the values of V0 to VX
             // FX65 - Set V0 to VX, with the value from memory of I to I+X
-            Chip8_t::Byte val{ nibbles[2] * 0x10 + nibbles[3] * 0x1 };
+            Chip8_t::Byte val{ (Chip8_t::Byte) (nibbles[2] * 0x10 + nibbles[3] * 0x1) };
 
             switch (val)
             {
@@ -510,7 +441,7 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
                     Chip8_t::Byte m_char{ m_regs.read(nibbles[1]) };
                     m_char = m_char & 0b00001111;
 
-                    m_I = CHIP8_FONT_BEGIN + m_char * 5;
+                    m_I = Chip8Const::font_begin + m_char * 5;
 
                     break;
                 }
@@ -557,9 +488,84 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
     }
 }
 
+// --- Constructors ----
+
+Chip8::Chip8() : 
+    m_memory{Chip8Const::mem_size},
+    m_display{Chip8Const::screen_width, Chip8Const::screen_height},
+    m_PC{},
+    m_I{},
+    m_stack{},
+    m_delay_timer{},
+    m_sound_timer{}, 
+    m_regs{},
+    m_key_states{},
+    m_legacy_beh{true}
+{
+    // Defaults vars
+
+
+    // Load fonts
+    Chip8_t::Byte m_font[]
+    {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+
+    for(int i{}; i < 80; ++i)
+    {
+        m_memory.write(Chip8Const::font_begin + i,  m_font[i]);
+    }
+
+    // Set PC
+    m_PC = 0x200;
+}
+
+// --- Member functions ---
+
 void Chip8::setLegacyBeh(bool value)
 {
     m_legacy_beh = value;
+}
+
+bool Chip8::load(const std::string& path)
+{
+    // Open file
+    std::ifstream file{path, std::ios::binary};
+    if(!file.is_open())
+    {
+        return false;
+    }
+
+    // Write file contents to memory
+    Chip8_t::Byte byte{};
+    Chip8_t::Word index{0x200};
+    while(file.read(reinterpret_cast<char*>(&byte), 1))
+    {
+        m_memory.write(index, byte);
+        ++index;
+        if(index >= 4096)
+        {
+            break;
+        }
+    }
+
+    file.close();
+    return true;
 }
 
 void Chip8::emulateStep()

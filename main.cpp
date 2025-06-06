@@ -15,7 +15,6 @@ void displaySDLError(const std::string& msg)
 int main()
 {
     // TODO:
-    // - General code cleanup
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
     // - Add debug controls with GUI (IMGUI)
@@ -162,7 +161,6 @@ int main()
         {
             if(Mix_GetMusicVolume(beep) != MIX_MAX_VOLUME/2)
             {
-                std::cout << "Shoudl beep and is not max vol\n";
                 Mix_VolumeMusic(MIX_MAX_VOLUME/2);
             }
             
@@ -171,7 +169,6 @@ int main()
         {
             if(Mix_GetMusicVolume(beep) != 0)
             {
-                std::cout << "Shouldn't beep and is not 0 vol\n";
                 Mix_VolumeMusic(0);
             }
         }

@@ -14,6 +14,7 @@ namespace Chip8Const
     inline constexpr Chip8_t::Byte screen_width{ 64 };
     inline constexpr Chip8_t::Word mem_size{ 4096 };
     inline constexpr Chip8_t::Byte buttons{0xF + 1};
+    inline constexpr Chip8_t::Word font_begin{ 0 };
 }
 
 

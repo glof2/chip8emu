@@ -27,7 +27,7 @@ void Timer::update()
     //std::cout << "Elapsed since start: " << elapsed << "s\n";
     //std::cout << "Calculated by doing (" << now << " - "  << m_time_started << ")/1000.0\n"; 
     //std::cout << "Timer started at " << (int)m_start_val << ", removing " << (int)elapsed * 60 << " val\n";  
-    int64_t to_remove{ elapsed*60 };
+    int64_t to_remove{ (int64_t) (elapsed*60.0) };
     if(to_remove > m_start_val)
     {
         to_remove = m_start_val;
