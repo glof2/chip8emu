@@ -14,6 +14,12 @@ void displaySDLError(const std::string& msg)
 
 int main()
 {
+    // TODO:
+    // - General code cleanup
+    // - CHIP8 lib cleanup and comments
+    // - Main file cleanup and comments
+    // - Add debug controls with GUI (IMGUI)
+
     // Prepare emulator
     Chip8 emulator{};
     std::cout << "Input rom file directory: ";
