@@ -6,13 +6,7 @@
 #include "Stack.hpp"
 #include "VarRegs.hpp"
 #include "Memory.hpp"
-
-
-
-struct Display
-{
-    bool data[Chip8Const::screen_height][Chip8Const::screen_width]{};
-};
+#include "Display.hpp"
 
 class Chip8
 {
@@ -27,7 +21,7 @@ public:
 
 private:
     Memory m_memory{Chip8Const::mem_size};
-    Display m_display{};
+    Display m_display{Chip8Const::screen_width, Chip8Const::screen_height};
     unsigned short m_PC{};
     unsigned short m_I{};
     Stack m_stack{};

@@ -8,7 +8,7 @@
 
 Chip8::Chip8() : 
     m_memory{Chip8Const::mem_size},
-    m_display{},
+    m_display{Chip8Const::screen_width, Chip8Const::screen_height},
     m_PC{},
     m_I{},
     m_stack{},
@@ -114,13 +114,16 @@ void Chip8::decodeExecute(unsigned short operation)
                 case 0x0:
                 {
                     // Clear screen
-                    for(int y{}; y < Chip8Const::screen_height; ++y)
+                    /*
+                    for(int y{}; y < m_display.getHeight(); ++y)
                     {
-                        for(int x{}; x < Chip8Const::screen_width; ++x)
+                        for(int x{}; x < m_display.getWidth(); ++x)
                         {
-                            m_display.data[y][x] = 0;
+                            m_display.setPixel(x, y, 0);
                         }
                     }
+                    */
+                    m_display.setAll(0);
                     break;
                 }
                 case 0xE:
@@ -382,7 +385,7 @@ void Chip8::decodeExecute(unsigned short operation)
             for(unsigned char byte_i{}; byte_i < n; ++byte_i)
             {
                 // Exit contition
-                if(y + byte_i >= Chip8Const::screen_height)
+                if(y + byte_i >= m_display.getHeight())
                 {
                     break;
                 }
@@ -396,7 +399,7 @@ void Chip8::decodeExecute(unsigned short operation)
                     bool bit{ masked_number >> i };
                     
                     // Exit condition
-                    if ( x + bit_i >= Chip8Const::screen_width)
+                    if ( x + bit_i >= m_display.getWidth())
                     {
                         break;
                     }
@@ -404,12 +407,13 @@ void Chip8::decodeExecute(unsigned short operation)
                     // Draw
                     if(bit == true)
                     {
-                        if(m_display.data[y + byte_i][x + bit_i] == true)
+                        if(getPixel(x + bit_i, y + byte_i) == true)
                         {
                             m_regs.write(0xF, 1);
                         }
 
-                        m_display.data[y + byte_i][x + bit_i] = !(m_display.data[y + byte_i][x + bit_i]);
+                        m_display.flipPixel(x + bit_i, y + byte_i);
+                        //m_display[y + byte_i][x + bit_i] = !(m_display.data[y + byte_i][x + bit_i]);
                     }
 
                     
@@ -573,7 +577,7 @@ void Chip8::emulateStep()
 
 bool Chip8::getPixel(unsigned char x, unsigned char y)
 {
-    return (m_display.data)[y][x];
+    return m_display.getPixel(x, y);
 }
 
 void Chip8::setKeyState(unsigned char which, Chip8::KeyState state)
