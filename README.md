@@ -5,3 +5,6 @@
 ## Planned features:
 - A debugging UI allowing view into the memory of the emulator
 - A UI which allows for choosing the ROM file
+## Planned improvements:
+- Making the emulator safer by verifying instructions passed by the ROM
+
