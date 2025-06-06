@@ -1,21 +1,17 @@
 #ifndef CHIP8_HPP
 #define CHIP8_HPP
 #include <string>
+#include "Chip8Common.hpp"
 #include "Timer.hpp"
 #include "Stack.hpp"
 #include "VarRegs.hpp"
+#include "Memory.hpp"
 
-#define CHIP8_SCREEN_HEIGHT 32
-#define CHIP8_SCREEN_WIDTH 64
 
-struct Memory
-{
-    unsigned char data[4096]{};
-};
 
 struct Display
 {
-    bool data[CHIP8_SCREEN_HEIGHT][CHIP8_SCREEN_WIDTH];
+    bool data[Chip8Const::screen_height][Chip8Const::screen_width]{};
 };
 
 class Chip8
@@ -30,7 +26,7 @@ public:
     };
 
 private:
-    Memory m_memory{};
+    Memory m_memory{Chip8Const::mem_size};
     Display m_display{};
     unsigned short m_PC{};
     unsigned short m_I{};
@@ -38,7 +34,7 @@ private:
     Timer m_delay_timer{};
     Timer m_sound_timer{}; 
     VarRegs m_regs{};
-    KeyState m_key_states[0xF+1]{};
+    KeyState m_key_states[Chip8Const::buttons];
     bool m_legacy_beh{true};
 
     void jumpTo(unsigned short location);

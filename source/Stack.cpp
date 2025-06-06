@@ -5,7 +5,7 @@ unsigned short Stack::pop()
 {
     if(m_top == nullptr)
     {
-        std::cout << "WTF BRO STACK IS EMPTY\n";
+        return 0;
     }
     unsigned short val{ m_top->value };
     StackElement* element{m_top->prev };

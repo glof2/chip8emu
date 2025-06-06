@@ -54,7 +54,7 @@ int main()
     }
 
     // Prepare window
-    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, CHIP8_SCREEN_WIDTH * RENDER_SCALE, CHIP8_SCREEN_HEIGHT * RENDER_SCALE, SDL_WINDOW_SHOWN) };
+    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Chip8Const::screen_width * RENDER_SCALE, Chip8Const::screen_height * RENDER_SCALE, SDL_WINDOW_SHOWN) };
     if(window == NULL)
     {
         displaySDLError("Failed to create window!");
@@ -70,7 +70,7 @@ int main()
     }
 
     // Prepare target texture
-    SDL_Texture* target{SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, CHIP8_SCREEN_WIDTH, CHIP8_SCREEN_HEIGHT)};
+    SDL_Texture* target{SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, Chip8Const::screen_width, Chip8Const::screen_height)};
     if(target == NULL)
     {
         displaySDLError("Failed to create texture for render scaling!");
@@ -205,8 +205,8 @@ int main()
         SDL_Rect scale_rect{};
         scale_rect.x = 0;
         scale_rect.y = 0;
-        scale_rect.w = CHIP8_SCREEN_WIDTH * RENDER_SCALE; 
-        scale_rect.h = CHIP8_SCREEN_HEIGHT * RENDER_SCALE;
+        scale_rect.w = Chip8Const::screen_width * RENDER_SCALE; 
+        scale_rect.h = Chip8Const::screen_height * RENDER_SCALE;
         SDL_RenderCopy(renderer, target, NULL, &scale_rect);
 
         // Present

@@ -6,8 +6,21 @@
 
 #define CHIP8_FONT_BEGIN 0
 
-Chip8::Chip8()
+Chip8::Chip8() : 
+    m_memory{Chip8Const::mem_size},
+    m_display{},
+    m_PC{},
+    m_I{},
+    m_stack{},
+    m_delay_timer{},
+    m_sound_timer{}, 
+    m_regs{},
+    m_key_states{},
+    m_legacy_beh{true}
 {
+    // Defaults vars
+
+
     // Load fonts
     unsigned char m_font[]
     {
@@ -31,7 +44,7 @@ Chip8::Chip8()
 
     for(int i{}; i < 80; ++i)
     {
-        m_memory.data[CHIP8_FONT_BEGIN + i] = m_font[i];
+        m_memory.write(CHIP8_FONT_BEGIN + i,  m_font[i]);
     }
 
     // Set PC
@@ -50,7 +63,7 @@ bool Chip8::load(const std::string& path)
     unsigned short index{0x200};
     while(file.read(reinterpret_cast<char*>(&byte), 1))
     {
-        writeToMemory(index, byte);
+        m_memory.write(index, byte);
         ++index;
         if(index >= 4096)
         {
@@ -67,21 +80,6 @@ void Chip8::jumpTo(unsigned short location)
     m_PC = location;
 }
 
-void Chip8::writeToMemory(unsigned short location, unsigned char value)
-{
-    if(location >= 4096)
-    {
-        std::cout << "ATTEMPTING TO WRITE TO MEMORY OUT OF BOUNDS!\n";
-        return;
-    }
-    *(&(m_memory.data[0]) + location) = value;
-}
-
-unsigned char Chip8::readFromMemory(unsigned short location)
-{
-    return *(&(m_memory.data[0]) + location);
-}
-
 unsigned short Chip8::getCurrentPCAddr()
 {
     return m_PC;
@@ -89,7 +87,7 @@ unsigned short Chip8::getCurrentPCAddr()
 
 unsigned short Chip8::fetch()
 {
-    unsigned short operation{  (unsigned short) (readFromMemory(m_PC) * 0x100 + readFromMemory(m_PC + 1)) };
+    unsigned short operation{  (unsigned short) (m_memory.read(m_PC) * 0x100 + m_memory.read(m_PC + 1)) };
     m_PC += 2;
     return operation;
 }
@@ -116,9 +114,9 @@ void Chip8::decodeExecute(unsigned short operation)
                 case 0x0:
                 {
                     // Clear screen
-                    for(int y{}; y < CHIP8_SCREEN_HEIGHT; ++y)
+                    for(int y{}; y < Chip8Const::screen_height; ++y)
                     {
-                        for(int x{}; x < CHIP8_SCREEN_WIDTH; ++x)
+                        for(int x{}; x < Chip8Const::screen_width; ++x)
                         {
                             m_display.data[y][x] = 0;
                         }
@@ -374,8 +372,8 @@ void Chip8::decodeExecute(unsigned short operation)
         case 0xD:
         {
             // For now draw
-            unsigned char x{ (unsigned char)(m_regs.read(nibbles[1]) % CHIP8_SCREEN_WIDTH) };
-            unsigned char y{ (unsigned char)(m_regs.read(nibbles[2]) % CHIP8_SCREEN_HEIGHT) };
+            unsigned char x{ (unsigned char)(m_regs.read(nibbles[1]) % Chip8Const::screen_width) };
+            unsigned char y{ (unsigned char)(m_regs.read(nibbles[2]) % Chip8Const::screen_height) };
             unsigned char n{ (unsigned char)(nibbles[3]) };
 
             // Set VF register
@@ -384,7 +382,7 @@ void Chip8::decodeExecute(unsigned short operation)
             for(unsigned char byte_i{}; byte_i < n; ++byte_i)
             {
                 // Exit contition
-                if(y + byte_i >= CHIP8_SCREEN_HEIGHT)
+                if(y + byte_i >= Chip8Const::screen_height)
                 {
                     break;
                 }
@@ -394,11 +392,11 @@ void Chip8::decodeExecute(unsigned short operation)
                 {
                     unsigned char bit_i{ (unsigned char)(7 - i) };
                     unsigned char mask{ 1 << i};
-                    unsigned char masked_number{ readFromMemory(m_I + byte_i) & mask };
+                    unsigned char masked_number{ m_memory.read(m_I + byte_i) & mask };
                     bool bit{ masked_number >> i };
                     
                     // Exit condition
-                    if ( x + bit_i >= CHIP8_SCREEN_WIDTH)
+                    if ( x + bit_i >= Chip8Const::screen_width)
                     {
                         break;
                     }
@@ -521,7 +519,7 @@ void Chip8::decodeExecute(unsigned short operation)
                     unsigned char num{ m_regs.read(nibbles[1]) };
                     for(char i{2}; i >= 0; --i)
                     {
-                        writeToMemory(m_I + i, num % 10);
+                        m_memory.write(m_I + i, num % 10);
                         num /= 10;
                     }
                     break;
@@ -530,7 +528,7 @@ void Chip8::decodeExecute(unsigned short operation)
                 {
                     for(int i{}; i <= nibbles[1]; ++i)
                     {
-                        writeToMemory(m_I + i, m_regs.read(i));
+                        m_memory.write(m_I + i, m_regs.read(i));
                     }
 
                     if(m_legacy_beh)
@@ -543,7 +541,7 @@ void Chip8::decodeExecute(unsigned short operation)
                 {
                     for(int i{}; i <= nibbles[1]; ++i)
                     {
-                        m_regs.write(i, readFromMemory(m_I + i));
+                        m_regs.write(i, m_memory.read(m_I + i));
                     }
 
                     if(m_legacy_beh)
