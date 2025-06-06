@@ -1,6 +1,7 @@
 #include <iostream>
 #include <map>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include "Chip8.hpp"
 
 #define RENDER_SCALE 16
@@ -15,7 +16,6 @@ int main()
 {
     // Prepare emulator
     Chip8 emulator{};
-    emulator.setLegacyBeh(true);
     std::cout << "Input rom file directory: ";
     std::string rom_dir{};
     std::cin >> rom_dir;
@@ -24,6 +24,12 @@ int main()
         std::cout << "Failed to load ROM!\n";
         return -1;
     }
+
+    char legacy_beh{};
+    std::cout << "Legacy beh? (y for yes): ";
+    std::cin >> legacy_beh;
+    emulator.setLegacyBeh(legacy_beh == 'y');
+
     std::cout << "Loaded ROM succesfuly!\n";
 
     // Move this to a function for later cleanup (in case it fails in the middle!)
@@ -33,6 +39,15 @@ int main()
         displaySDLError("Failed to init SDL!");
         return -1;
     }
+
+    //Initialize SDL_mixer
+    if( Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 2, 2048 ) < 0 )
+    {
+        std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " <<  Mix_GetError() << '\n';
+        return -1;
+    }
+
+    // Prepare window
     SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, CHIP8_SCREEN_WIDTH * RENDER_SCALE, CHIP8_SCREEN_HEIGHT * RENDER_SCALE, SDL_WINDOW_SHOWN) };
     if(window == NULL)
     {
@@ -40,13 +55,15 @@ int main()
         return -1;
     }
     
-    SDL_Renderer* renderer{SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC)};
+    // Prepare renderer
+    SDL_Renderer* renderer{SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)};
     if(renderer == NULL)
     {
         displaySDLError("FAiled to create renderer!");
         return -1;
     }
 
+    // Prepare target texture
     SDL_Texture* target{SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, CHIP8_SCREEN_WIDTH, CHIP8_SCREEN_HEIGHT)};
     if(target == NULL)
     {
@@ -54,25 +71,37 @@ int main()
         return -1;
     }
 
+    // Prepare sound
+    Mix_Music* beep{ Mix_LoadMUS("beep.wav") };
+    if (beep == NULL)
+    {
+        std::cout << "Could not load beep.wav! SDL_mixer Error: " <<  Mix_GetError() << '\n';
+        return -1;
+    }
+
+    // Play sound
+    Mix_VolumeMusic(0);
+    Mix_PlayMusic(beep, -1);
+
     // Vars for loop
     bool run{true};
     const std::map<SDL_Keycode, unsigned char> key_translations
     {
-        {SDLK_1, 0x0},
-        {SDLK_2, 0x1},
-        {SDLK_3, 0x2},
-        {SDLK_4, 0x3},
+        {SDLK_1, 0x1},
+        {SDLK_2, 0x2},
+        {SDLK_3, 0x3},
+        {SDLK_4, 0xC},
         {SDLK_q, 0x4},
         {SDLK_w, 0x5},
         {SDLK_e, 0x6},
-        {SDLK_r, 0x7},
-        {SDLK_a, 0x8},
-        {SDLK_s, 0x9},
-        {SDLK_d, 0xA},
-        {SDLK_f, 0xB},
-        {SDLK_z, 0xC},
-        {SDLK_x, 0xD},
-        {SDLK_c, 0xE},
+        {SDLK_r, 0xD},
+        {SDLK_a, 0x7},
+        {SDLK_s, 0x8},
+        {SDLK_d, 0x9},
+        {SDLK_f, 0xE},
+        {SDLK_z, 0xA},
+        {SDLK_x, 0x0},
+        {SDLK_c, 0xB},
         {SDLK_v, 0xF},
     };
 
@@ -91,25 +120,17 @@ int main()
                 }
                 case SDL_KEYDOWN:
                 {
-                    for(std::pair<SDL_Keycode, unsigned char> key : key_translations)
+                    if(key_translations.find(ev.key.keysym.sym) != key_translations.end())
                     {
-                        if(key.first == ev.key.keysym.sym)
-                        {
-                            emulator.updateKeyState(key.second, true);
-                            break;
-                        }
+                        emulator.setKeyState(key_translations.at(ev.key.keysym.sym), Chip8::KeyState::DOWN);
                     }
                     break;
                 }
                 case SDL_KEYUP:
                 {
-                    for(std::pair<SDL_Keycode, unsigned char> key : key_translations)
+                    if(key_translations.find(ev.key.keysym.sym) != key_translations.end())
                     {
-                        if(key.first == ev.key.keysym.sym)
-                        {
-                            emulator.updateKeyState(key.second, false);
-                            break;
-                        }
+                        emulator.setKeyState(key_translations.at(ev.key.keysym.sym), Chip8::KeyState::JUST_RELEASED);
                     }
                     break;
                 }
@@ -117,7 +138,37 @@ int main()
         }
 
         // -- Update --
+
+        // -- Emulate a step
         emulator.emulateStep();
+
+        // -- Set just released keys to down --
+        for(const std::pair<SDL_Keycode, unsigned char>& key : key_translations)
+        {
+            if(emulator.getKeyState(key.second) == Chip8::KeyState::JUST_RELEASED)
+            {
+                emulator.setKeyState(key.second, Chip8::KeyState::UP); 
+            }
+        }
+
+        // -- Play sound --
+        if(emulator.shouldBeep())
+        {
+            if(Mix_GetMusicVolume(beep) != MIX_MAX_VOLUME/2)
+            {
+                std::cout << "Shoudl beep and is not max vol\n";
+                Mix_VolumeMusic(MIX_MAX_VOLUME/2);
+            }
+            
+        }
+        else
+        {
+            if(Mix_GetMusicVolume(beep) != 0)
+            {
+                std::cout << "Shouldn't beep and is not 0 vol\n";
+                Mix_VolumeMusic(0);
+            }
+        }
 
         // -- Render -- 
         // Clear
@@ -154,7 +205,7 @@ int main()
 
         // Present
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000/70);
+        SDL_Delay(1000/600);
     }
 
 

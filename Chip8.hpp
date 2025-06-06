@@ -20,16 +20,25 @@ struct Display
 
 class Chip8
 {
+public:
+    enum class KeyState
+    {
+        UP,
+        DOWN,
+        JUST_RELEASED,
+        INVALID
+    };
+
 private:
     Memory m_memory{};
     Display m_display{};
-    unsigned char* m_PC{};
+    unsigned short m_PC{};
     unsigned short m_I{};
     Stack m_stack{};
     Timer m_delay_timer{};
     Timer m_sound_timer{}; 
     VarRegs m_regs{};
-    bool m_key_states[0xF + 1]{};
+    KeyState m_key_states[0xF+1]{};
     bool m_legacy_beh{true};
 
     void jumpTo(unsigned short location);
@@ -44,7 +53,9 @@ public:
     bool load(const std::string& path);
     void emulateStep();
     bool getPixel(unsigned char x, unsigned char y);
-    void updateKeyState(unsigned char which, bool state);
+    void setKeyState(unsigned char which, KeyState state);
+    KeyState getKeyState(unsigned char which);
+    bool shouldBeep();
 };
 
 #endif

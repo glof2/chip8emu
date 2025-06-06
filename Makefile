@@ -15,7 +15,7 @@ TARGET = output_build
 SOURCES = main.cpp Stack.cpp Chip8.cpp VarRegs.cpp Timer.cpp
 
 # Additional libraries
-LIBS = -lSDL2
+LIBS = -lSDL2 -lSDL2_mixer
 
 # Default build
 all: $(TARGET)
@@ -23,3 +23,11 @@ all: $(TARGET)
 # Create executable
 $(TARGET): $(SOURCES)
 	$(COMPILER) $(SOURCES) $(FLAGS) $(LIBS) -o $(TARGET)
+
+# Clear
+clear:
+	rm $(TARGET)
+
+# Run
+run:
+	./$(TARGET)

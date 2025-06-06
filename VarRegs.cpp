@@ -1,4 +1,6 @@
 #include "VarRegs.hpp"
+#include <iomanip>
+#include <iostream>
 
 unsigned char VarRegs::read(unsigned char which)
 {
@@ -7,5 +9,13 @@ unsigned char VarRegs::read(unsigned char which)
 
 void VarRegs::write(unsigned char which, unsigned char value)
 {
-    m_regs[which] = value;
+    if(which <= 0xF)
+    {
+        m_regs[which] = value;
+    }
+    else
+    {
+        std::cout << "ATTEMPTING TO WRITE TO INVALID REG " << std::hex << (int)which << std::dec << "!\n";
+    }
+    
 }

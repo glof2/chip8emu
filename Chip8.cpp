@@ -35,7 +35,7 @@ Chip8::Chip8()
     }
 
     // Set PC
-    m_PC = &(m_memory.data[0x200]);
+    m_PC = 0x200;
 }
 
 bool Chip8::load(const std::string& path)
@@ -50,7 +50,7 @@ bool Chip8::load(const std::string& path)
     unsigned short index{0x200};
     while(file.read(reinterpret_cast<char*>(&byte), 1))
     {
-        m_memory.data[index] = byte;
+        writeToMemory(index, byte);
         ++index;
         if(index >= 4096)
         {
@@ -64,11 +64,16 @@ bool Chip8::load(const std::string& path)
 
 void Chip8::jumpTo(unsigned short location)
 {
-    m_PC = (&(m_memory.data[0])) + location;
+    m_PC = location;
 }
 
 void Chip8::writeToMemory(unsigned short location, unsigned char value)
 {
+    if(location >= 4096)
+    {
+        std::cout << "ATTEMPTING TO WRITE TO MEMORY OUT OF BOUNDS!\n";
+        return;
+    }
     *(&(m_memory.data[0]) + location) = value;
 }
 
@@ -79,12 +84,12 @@ unsigned char Chip8::readFromMemory(unsigned short location)
 
 unsigned short Chip8::getCurrentPCAddr()
 {
-    return m_PC - &(m_memory.data[0]);
+    return m_PC;
 }
 
 unsigned short Chip8::fetch()
 {
-    unsigned short operation{  (unsigned short) (*(m_PC) * 0x100 + *(m_PC + 1)) };
+    unsigned short operation{  (unsigned short) (readFromMemory(m_PC) * 0x100 + readFromMemory(m_PC + 1)) };
     m_PC += 2;
     return operation;
 }
@@ -126,11 +131,6 @@ void Chip8::decodeExecute(unsigned short operation)
                     unsigned short location = m_stack.pop();
                     jumpTo(location);
 
-                    break;
-                }
-                default:
-                {
-                    std::cout << "INVALID OPERATION 0x0NNN" << '\n';
                     break;
                 }
             }
@@ -225,6 +225,7 @@ void Chip8::decodeExecute(unsigned short operation)
             unsigned char set_value{};
             unsigned char vx{ m_regs.read(nibbles[1]) };
             unsigned char vy{ m_regs.read(nibbles[2]) };
+            bool vf_value{ m_regs.read(0xF) };
             switch (nibbles[3])
             {
                 case 0x0:
@@ -234,45 +235,57 @@ void Chip8::decodeExecute(unsigned short operation)
                 }
                 case 0x1:
                 {
+                    if(m_legacy_beh)
+                    {
+                        vf_value = 0;
+                    }
                     set_value = vx | vy;
                     break;
                 }
                 case 0x2:
                 {
+                    if(m_legacy_beh)
+                    {
+                        vf_value = 0;
+                    }
                     set_value = vx & vy;
                     break;
                 }
                 case 0x3:
                 {
+                    if(m_legacy_beh)
+                    {
+                        vf_value = 0;
+                    }
                     set_value = vx xor vy;
                     break;
                 }
                 case 0x4:
                 {
-                    m_regs.write(0xF, 0);
+                    vf_value = 0;
                     if (vx + vy > 255)
                     {
-                        m_regs.write(0xF, 1);
+                        vf_value = 1;
                     }
                     set_value = (unsigned char) (vx + vy);
                     break;
                 }
                 case 0x5:
                 {
-                    m_regs.write(0xF, 0);
-                    if(vx > vy)
+                    vf_value = 0;
+                    if(vx >= vy)
                     {
-                        m_regs.write(0XF, 1);
+                        vf_value = 1;
                     }
                     set_value = vx - vy;
                     break;
                 }
                 case 0x7:
                 {
-                    m_regs.write(0xF, 0);
-                    if(vy > vx)
+                    vf_value = 0;
+                    if(vy >= vx)
                     {
-                        m_regs.write(0XF, 1);
+                        vf_value = 1;
                     }
                     set_value = vy - vx;
                     break;
@@ -284,7 +297,7 @@ void Chip8::decodeExecute(unsigned short operation)
                         vx = vy;
                     }
 
-                    m_regs.write(0xF, vx & 0b00000001);
+                    vf_value = vx & 0b00000001;
 
                     set_value = vx >> 1;
 
@@ -297,7 +310,7 @@ void Chip8::decodeExecute(unsigned short operation)
                         vx = vy;
                     }
 
-                    m_regs.write(0xF, vx & 0b10000000);
+                    vf_value = vx & 0b10000000;
 
                     set_value = vx << 1;
 
@@ -307,6 +320,8 @@ void Chip8::decodeExecute(unsigned short operation)
             }
 
             m_regs.write(nibbles[1], set_value);
+            m_regs.write(0xF, vf_value);
+            
             break;
         }
         case 0x9:
@@ -366,17 +381,28 @@ void Chip8::decodeExecute(unsigned short operation)
             // Set VF register
             m_regs.write(0xF, 0);
 
-            unsigned char* start_byte{ &(m_memory.data[0]) + m_I };
             for(unsigned char byte_i{}; byte_i < n; ++byte_i)
             {
+                // Exit contition
+                if(y + byte_i >= CHIP8_SCREEN_HEIGHT)
+                {
+                    break;
+                }
+
                 // Go through each bit in byte
                 for(char i{7}; i >= 0; --i)
                 {
                     unsigned char bit_i{ (unsigned char)(7 - i) };
                     unsigned char mask{ 1 << i};
-                    unsigned char masked_number{ *(start_byte + byte_i) & mask };
+                    unsigned char masked_number{ readFromMemory(m_I + byte_i) & mask };
                     bool bit{ masked_number >> i };
                     
+                    // Exit condition
+                    if ( x + bit_i >= CHIP8_SCREEN_WIDTH)
+                    {
+                        break;
+                    }
+
                     // Draw
                     if(bit == true)
                     {
@@ -384,20 +410,11 @@ void Chip8::decodeExecute(unsigned short operation)
                         {
                             m_regs.write(0xF, 1);
                         }
+
                         m_display.data[y + byte_i][x + bit_i] = !(m_display.data[y + byte_i][x + bit_i]);
                     }
 
-                    // Exit condition
-                    if ( x + bit_i >= CHIP8_SCREEN_WIDTH)
-                    {
-                        break;
-                    }
-                }
-
-                // Exit contition
-                if(y + byte_i >= CHIP8_SCREEN_HEIGHT)
-                {
-                    break;
+                    
                 }
             }
             break;
@@ -405,14 +422,19 @@ void Chip8::decodeExecute(unsigned short operation)
         case 0xE:
         {
             // EX9E - Skip one instruction if the key corresponding to value in VX is pressed
-            // EXA1 - Skip one instruction if the key correspondint to value in VX is not pressed
+            // EXA1 - Skip one instruction if the key corresponding to value in VX is not pressed
             unsigned char val{ nibbles[2] * 0x10 + nibbles[3] * 0x1 };
             unsigned char key{ m_regs.read(nibbles[1]) };
+            if (key > 0xF)
+            {
+                std::cout << "Attempted to grab wrong key!\n";
+                return;
+            }
             switch (val)
             {
                 case 0x9E:
                 {
-                    if(m_key_states[key] == true)
+                    if(m_key_states[key] == Chip8::KeyState::DOWN) 
                     {
                         m_PC += 2;
                     }
@@ -420,7 +442,7 @@ void Chip8::decodeExecute(unsigned short operation)
                 }
                 case 0xA1:
                 {
-                    if(m_key_states[key] == false)
+                    if(m_key_states[key] == Chip8::KeyState::UP || m_key_states[key] == Chip8::KeyState::JUST_RELEASED)
                     {
                         m_PC += 2;
                     }
@@ -469,15 +491,14 @@ void Chip8::decodeExecute(unsigned short operation)
                     unsigned char key{0xF+1};
                     for(unsigned char key_i{}; key_i <= 0xF; ++key_i)
                     {
-                        if(m_key_states[key_i] == true)
+                        if(m_key_states[key_i] == KeyState::JUST_RELEASED)
                         {
                             key = key_i;
                             break;
                         }
                     }
-                    if(key == 0xF+1)
+                    if(key > 0xF)
                     {
-                        std::cout << "WAITING FOR INPUT!\n"; 
                         m_PC -= 2;
                     }
                     else
@@ -557,7 +578,17 @@ bool Chip8::getPixel(unsigned char x, unsigned char y)
     return (m_display.data)[y][x];
 }
 
-void Chip8::updateKeyState(unsigned char which, bool state)
+void Chip8::setKeyState(unsigned char which, Chip8::KeyState state)
 {
     m_key_states[which] = state;
+}
+
+Chip8::KeyState Chip8::getKeyState(unsigned char which)
+{
+    return m_key_states[which];
+}
+
+bool Chip8::shouldBeep()
+{
+    return m_sound_timer.get() > 0;
 }

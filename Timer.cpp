@@ -1,4 +1,5 @@
 #include "Timer.hpp"
+#include <iostream>
 
 int64_t Timer::getTime()
 {
@@ -20,12 +21,20 @@ void Timer::set(unsigned char value)
 
 void Timer::update()
 {
-    int64_t elapsed{ int64_t((getTime() - m_time_started)/1000.0 * 60.0) };
-    if(elapsed > m_start_val)
+    //std::cout << "Timer updating.\n";
+    int64_t now{ getTime() };
+    double elapsed{ ((now - m_time_started)/1000.0) };
+    //std::cout << "Elapsed since start: " << elapsed << "s\n";
+    //std::cout << "Calculated by doing (" << now << " - "  << m_time_started << ")/1000.0\n"; 
+    //std::cout << "Timer started at " << (int)m_start_val << ", removing " << (int)elapsed * 60 << " val\n";  
+    int64_t to_remove{ elapsed*60 };
+    if(to_remove > m_start_val)
     {
-        elapsed = m_start_val;
+        to_remove = m_start_val;
     }
-    m_value = m_start_val - elapsed;
+    m_value = m_start_val - to_remove;
+    //std::cout << "FInal m_value: " << (int)m_value << '\n';
+
 }
 
 unsigned char Timer::get()
