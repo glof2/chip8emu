@@ -4,12 +4,12 @@
 
 // -- Constructors --
 
-Memory::Memory(unsigned short size) : m_data(size, 0) {}
+Memory::Memory(std::uint16_t  size) : m_data(size, 0) {}
 
 
 // -- Member functions --
 
-void Memory::write(unsigned short where, unsigned char what)
+void Memory::write(std::uint16_t where, std::uint8_t what)
 {
     if(where >= m_data.size())
     {
@@ -22,7 +22,7 @@ void Memory::write(unsigned short where, unsigned char what)
     m_data[where] = what;
 }
 
-unsigned char Memory::read(unsigned short where)
+std::uint8_t  Memory::read(std::uint16_t where)
 {
     if(where >= m_data.size())
     {
@@ -34,7 +34,7 @@ unsigned char Memory::read(unsigned short where)
     return m_data[where];
 }
 
-unsigned short Memory::getSize()
+std::uint16_t  Memory::getSize()
 {
     return m_data.size();
 }

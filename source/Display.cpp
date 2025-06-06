@@ -3,11 +3,11 @@
 
 // --- Constructors ---
 
-Display::Display(unsigned short width, unsigned short height) : m_data(height, std::vector<bool>(width, false)) {}
+Display::Display(Chip8_t::Word width, Chip8_t::Word height) : m_data(height, std::vector<bool>(width, false)) {}
 
 // --- Member functions ---
 
-void Display::setPixel(unsigned short x, unsigned short y, bool state)
+void Display::setPixel(Chip8_t::Word x, Chip8_t::Word y, bool state)
 {
     if(x > getWidth() || y > getHeight())
     {
@@ -19,7 +19,7 @@ void Display::setPixel(unsigned short x, unsigned short y, bool state)
     m_data[y][x] = state;
 }
 
-bool Display::getPixel(unsigned short x, unsigned short y)
+bool Display::getPixel(Chip8_t::Word x, Chip8_t::Word y)
 {
     if(x > getWidth() || y > getHeight())
     {
@@ -31,7 +31,7 @@ bool Display::getPixel(unsigned short x, unsigned short y)
     return m_data[y][x];
 }
 
-void Display::flipPixel(unsigned short x, unsigned short y)
+void Display::flipPixel(Chip8_t::Word x, Chip8_t::Word y)
 {
     if(x > getWidth() || y > getHeight())
     {
@@ -54,7 +54,7 @@ void Display::setAll(bool state)
     }
 }
 
-unsigned short Display::getWidth()
+Chip8_t::Word Display::getWidth()
 {
     if(getHeight() > 0)
     {
@@ -67,7 +67,7 @@ unsigned short Display::getWidth()
     }
 }
 
-unsigned short Display::getHeight()
+Chip8_t::Word Display::getHeight()
 {
     return m_data.size();
 }

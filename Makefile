@@ -21,7 +21,7 @@ endif
 TARGET = emulator
 
 # Source file list
-SOURCES = main.cpp ./source/Stack.cpp ./source/Chip8.cpp ./source/VarRegs.cpp ./source/Timer.cpp ./source/Memory.cpp ./source/Display.cpp
+SOURCES = main.cpp ./source/Chip8.cpp ./source/VarRegs.cpp ./source/Timer.cpp ./source/Memory.cpp ./source/Display.cpp
 
 # Additional libraries
 LIBS = -lSDL2 -lSDL2_mixer

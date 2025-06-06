@@ -1,6 +1,7 @@
 #ifndef DISPLAY_HPP
 #define DISPLAY_HPP
 #include <vector>
+#include "Chip8Common.hpp"
 
 class Display
 {
@@ -12,7 +13,7 @@ public:
     //  Description:    A Display class constructor
     //  Arguments:      width - the width of the display (px)
     //                  height - the height of the display (px)
-    Display(unsigned short width, unsigned short height);
+    Display(Chip8_t::Word width, Chip8_t::Word height);
 
     // --- Member functions ---
 
@@ -21,20 +22,20 @@ public:
     //  Arguments:      x - the X coordinate of the pixel
     //                  y - the Y coordinate of the pixel
     //                  state - the state which the pixel will be set to
-    void setPixel(unsigned short x, unsigned short y, bool state);
+    void setPixel(Chip8_t::Word x, Chip8_t::Word y, bool state);
 
     //  Name:            getPixel
     //  Description:     returns the state of the pixel at provided coordinates
     //  Arguments:       x - the X coordinate of the pixel
     //                   y - the Y coordinate of the pixel
     //  Return value:    The state of the pixel at (x, y) coordinates
-    bool getPixel(unsigned short x, unsigned short y);
+    bool getPixel(Chip8_t::Word x, Chip8_t::Word y);
 
     //  Name:           flipPixel
     //  Description:    flips the pixel at the provided coordinates
     //  Arguments:      x - the X coordinate of the pixel
     //                  y - the Y coordinate of the pixel
-    void flipPixel(unsigned short x, unsigned short y);
+    void flipPixel(Chip8_t::Word x, Chip8_t::Word y);
 
     //  Name:           setAll
     //  Description:    sets all pixels on display to provided state
@@ -44,12 +45,12 @@ public:
     //  Name:           getWidth
     //  Description:    returns the width of the Display, assumes the height is > 0
     //  Return:         the width of the display
-    unsigned short getWidth();   
+    Chip8_t::Word getWidth();   
 
     //  Name:           getHeight
     //  Description:    returns the height of the Display
     //  Return:         the height of the display
-    unsigned short getHeight();
+    Chip8_t::Word getHeight();
 };
 
 #endif

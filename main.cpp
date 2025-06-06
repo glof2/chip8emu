@@ -91,7 +91,7 @@ int main()
 
     // Vars for loop
     bool run{true};
-    const std::map<SDL_Keycode, unsigned char> key_translations
+    const std::map<SDL_Keycode, Chip8_t::Byte> key_translations
     {
         {SDLK_1, 0x1},
         {SDLK_2, 0x2},
@@ -149,7 +149,7 @@ int main()
         emulator.emulateStep();
 
         // -- Set just released keys to down --
-        for(const std::pair<SDL_Keycode, unsigned char>& key : key_translations)
+        for(const std::pair<SDL_Keycode, Chip8_t::Byte>& key : key_translations)
         {
             if(emulator.getKeyState(key.second) == Chip8::KeyState::JUST_RELEASED)
             {

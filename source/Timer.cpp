@@ -12,7 +12,7 @@ Timer::Timer()
     m_time_started = getTime();
 }
 
-void Timer::set(unsigned char value)
+void Timer::set(std::uint8_t value)
 {
     m_start_val = value;
     m_value = value;
@@ -37,7 +37,7 @@ void Timer::update()
 
 }
 
-unsigned char Timer::get()
+std::uint8_t Timer::get()
 {
     update();
     return m_value;

@@ -2,12 +2,12 @@
 #include <iomanip>
 #include <iostream>
 
-unsigned char VarRegs::read(unsigned char which)
+std::uint8_t VarRegs::read(std::uint8_t which)
 {
     return m_regs[which];
 }
 
-void VarRegs::write(unsigned char which, unsigned char value)
+void VarRegs::write(std::uint8_t which, std::uint8_t value)
 {
     if(which <= 0xF)
     {
