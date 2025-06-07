@@ -3,8 +3,13 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_mixer.h>
 #include "header/Chip8.hpp"
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_sdlrenderer2.h>
 
 #define RENDER_SCALE 16
+#define DEBUG_MENU_ADD_W 48 * RENDER_SCALE
+#define DEBUG_MENU_ADD_H 24 * RENDER_SCALE
 
 void displaySDLError(const std::string& msg)
 {
@@ -12,8 +17,35 @@ void displaySDLError(const std::string& msg)
     std::cout << "SDL_Error: " << SDL_GetError() << '\n';
 }
 
+std::string byteToHex(Chip8_t::Byte number)
+{
+    std::string result{};
+    for(int i{}; i < 2; ++i)
+    {
+        std::cout << "Current num: " << (int) number << ", hex digit: " << number % 16 << '\n';
+        int digit{ number % 16 };
+        char hex_char{};
+        if(digit <= 9)
+        {
+            hex_char = '0' + digit;
+        }
+        else
+        {
+            hex_char = 'A' + digit - 10;
+        }
+
+        result = hex_char + result;
+
+        number /= 16;
+    }
+
+    return result;
+}
+
 int main()
 {
+    std::cout << "Byte to hex 16: " << byteToHex(0xDE) << '\n'; 
+
     // TODO:
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
@@ -53,7 +85,7 @@ int main()
     }
 
     // Prepare window
-    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Chip8Const::screen_width * RENDER_SCALE, Chip8Const::screen_height * RENDER_SCALE, SDL_WINDOW_SHOWN) };
+    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Chip8Const::screen_width * RENDER_SCALE + DEBUG_MENU_ADD_W, Chip8Const::screen_height * RENDER_SCALE + DEBUG_MENU_ADD_H, SDL_WINDOW_SHOWN) };
     if(window == NULL)
     {
         displaySDLError("Failed to create window!");
@@ -84,12 +116,23 @@ int main()
         return -1;
     }
 
+    // Init imgui
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io{ ImGui::GetIO() };
+    (void)io;
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer2_Init(renderer);
+
     // Play sound
     Mix_VolumeMusic(0);
     Mix_PlayMusic(beep, -1);
 
     // Vars for loop
     bool run{true};
+    double emu_last_update{ (double) Timer::getTime() };
+    int emu_updates_per_second{600};
+
     const std::map<SDL_Keycode, Chip8_t::Byte> key_translations
     {
         {SDLK_1, 0x1},
@@ -140,12 +183,28 @@ int main()
                     break;
                 }
             }
+
+            // Pass to IMGUI
+            ImGui_ImplSDL2_ProcessEvent(&ev);
         }
 
         // -- Update --
 
-        // -- Emulate a step
-        emulator.emulateStep();
+        // -- Emulate a step (or multiple)
+        int64_t time_now{ Timer::getTime() };
+        double emu_update_wait{ 1000.0 / double(emu_updates_per_second) };
+        double since_last_update{ double(time_now) - emu_last_update };
+        if(since_last_update >= emu_update_wait)
+        {
+            int64_t amount_of_updates{ (int64_t)(since_last_update / emu_update_wait) };
+            double time_accounted_for{ amount_of_updates * emu_update_wait };
+            for(int64_t i{}; i < amount_of_updates; ++i)
+            {
+                emulator.emulateStep();
+            }
+            double time_unaccounted_for{ since_last_update - time_accounted_for }; 
+            emu_last_update = (double)time_now - time_unaccounted_for;
+        }
 
         // -- Set just released keys to down --
         for(const std::pair<SDL_Keycode, Chip8_t::Byte>& key : key_translations)
@@ -173,7 +232,8 @@ int main()
             }
         }
 
-        // -- Render -- 
+        // -- Render --
+        
         // Clear
         SDL_RenderClear(renderer);
 
@@ -186,7 +246,7 @@ int main()
                 bool pixel{ emulator.getPixel(x, y) };
                 if(pixel)
                 {
-                    SDL_SetRenderDrawColor(renderer, 0xFF, 0xFF, 0xFF, 0xFF);
+                    SDL_SetRenderDrawColor(renderer, 0x7D, 0x34, 0xEB, 0xFF);
                 }
                 else
                 {
@@ -195,7 +255,7 @@ int main()
                 SDL_RenderDrawPoint(renderer, x, y);   
             }
         }
-        SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+        SDL_SetRenderDrawColor(renderer, 0x42, 0x3E, 0x47, 0xFF);
         SDL_SetRenderTarget(renderer, NULL);
         
         // Draw texture on screen
@@ -206,12 +266,195 @@ int main()
         scale_rect.h = Chip8Const::screen_height * RENDER_SCALE;
         SDL_RenderCopy(renderer, target, NULL, &scale_rect);
 
+        // Handle IMGUI
+        // Begin frame
+        ImGui_ImplSDLRenderer2_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
+        ImGui::NewFrame();
+
+        // Render GUI
+
+        // --- Memory view ---
+        ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiCond_Once);
+        if(ImGui::Begin("Memory"))
+        {
+            // Set up table
+            ImGui::BeginTable("Mem", 5);
+            
+            ImGui::TableSetupColumn("Addr");
+            ImGui::TableSetupColumn("+0x00");
+            ImGui::TableSetupColumn("+0x02");
+            ImGui::TableSetupColumn("+0x04");
+            ImGui::TableSetupColumn("+0x06");
+            ImGui::TableHeadersRow();
+
+            for(Chip8_t::Word i{}; i < Chip8Const::mem_size; i+=8)
+            {
+                ImGui::TableNextRow();
+
+                // Set column
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0xE8, 0xB6, 0x02, 0xFF)), "%04X", i);
+
+                for(uint8_t j{}; j < 8; j+= 2)
+                {
+                    ImGui::TableSetColumnIndex(j/2+1);
+                    Chip8_t::Byte byte{ emulator.getMemoryAt(i + j) };
+                    Chip8_t::Byte byte2{ emulator.getMemoryAt(i+ j +1)};
+
+                    if(i+j == emulator.getPC())
+                    {
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
+                        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0xFF, 0x00, 0x00, 0xFF));
+                    }
+
+                    if(i+j == emulator.getI())
+                    {
+                        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
+                        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0x00, 0xFF, 0x00, 0xFF));
+                    }
+
+                    ImGui::Text("%04X", byte *0x100 + byte2);
+
+                    if(i+j == emulator.getPC())
+                    {
+                        ImGui::PopStyleColor();
+                    }
+
+                    if(i+j == emulator.getI())
+                    {
+                        ImGui::PopStyleColor();
+                    }
+                }
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::End();
+        
+
+        // --- Second window ---
+        ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiCond_Once);
+        if(ImGui::Begin("Debug tools & Info"))
+        {
+            // -- Tools --
+            ImGui::Text("Tools:");
+
+            // Instructions per second slider
+            ImGui::SliderInt("Instructions per second", &emu_updates_per_second, 0, 2000);
+            
+            // Next instruction
+            if(ImGui::Button("Next Instruction"))
+            {
+                emulator.emulateStep();
+            }
+
+            // -- Info --
+            ImGui::NewLine();
+            ImGui::Text("Info:");
+            
+            ImGui::BeginTable("Debug Info", 2);
+
+            // - PC -
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Current instruction index");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x00, 0x00, 0xFF)), "%04X", emulator.getPC());
+
+            // - I -
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Current I index");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xFF, 0x00, 0xFF)), "%04X", emulator.getI());
+
+            // Delay timer
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Delay timer");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", emulator.getDelayTimerValue());
+
+            // Sound timer
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Delay timer");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", emulator.getSoundTimerValue());
+
+            ImGui::EndTable();
+
+            // Regs:
+            ImGui::BeginTable("Registers", 2);
+            ImGui::TableSetupColumn("Register");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            for(uint8_t i{}; i <= 0xF; ++i)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("V%X", i);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%02X", emulator.getReg(i));
+            }
+
+            ImGui::EndTable();
+
+            // Stack:
+            ImGui::BeginTable("Stack", 2);
+            ImGui::TableSetupColumn("Number (1 - top)");
+            ImGui::TableSetupColumn("Value");
+            ImGui::TableHeadersRow();
+
+            std::stack<Chip8_t::Word> stack_copy{ emulator.getStackCopy() };
+
+            int i{1};
+            while(!stack_copy.empty())
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%u", i++);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%04X", stack_copy.top());
+                stack_copy.pop();
+            }
+
+            for(int j{i}; j <= 5; ++j)
+            {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%u", j);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("N/A");
+            }
+
+            ImGui::EndTable();
+        }
+
+        ImGui::End();
+
+        // End frame
+        ImGui::EndFrame();
+
+        // Render IMGUI
+        ImGui::Render();
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
+
         // Present
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000/600);
     }
 
+    // --- Cleanup ---
+    // Quit imgui
+    ImGui_ImplSDLRenderer2_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
 
+    //
+
+    // Close SDL
     SDL_DestroyTexture(target);
     target = nullptr;
     SDL_DestroyRenderer(renderer);

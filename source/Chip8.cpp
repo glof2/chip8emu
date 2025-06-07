@@ -596,3 +596,38 @@ bool Chip8::shouldBeep()
 {
     return m_sound_timer.get() > 0;
 }
+
+Chip8_t::Byte Chip8::getMemoryAt(Chip8_t::Word where)
+{
+    return m_memory.read(where);
+}
+
+Chip8_t::Word Chip8::getPC()
+{
+    return m_PC;
+}
+
+Chip8_t::Word Chip8::getI()
+{
+    return m_I;
+}
+
+Chip8_t::Byte Chip8::getReg(Chip8_t::Byte which)
+{
+    return m_regs.read(which);
+}
+
+std::stack<Chip8_t::Word> Chip8::getStackCopy()
+{
+    return m_stack;
+}
+
+std::uint8_t Chip8::getDelayTimerValue()
+{
+    return m_delay_timer.get();
+}
+
+std::uint8_t Chip8::getSoundTimerValue()
+{
+    return m_sound_timer.get();
+}
