@@ -260,36 +260,32 @@ int main()
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0xE8, 0xB6, 0x02, 0xFF)), "%04X", i);
 
-                for(uint8_t j{}; j < 8; j+= 2)
+                for(uint8_t j{}; j < 8; ++j)
                 {
-                    ImGui::TableSetColumnIndex(j/2+1);
+                    ImGui::TableSetColumnIndex(j/2 + 1);
                     Chip8_t::Byte byte{ emulator.getMemoryAt(i + j) };
-                    Chip8_t::Byte byte2{ emulator.getMemoryAt(i+ j +1)};
 
-                    if(i+j == emulator.getPC())
+                    if(j%2 != 0)
+                    {
+                        ImGui::SameLine();
+                    }
+
+                    if(i+j == emulator.getPC() || i + j - 1 == emulator.getPC())
                     {
                         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
-                        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0xFF, 0x00, 0x00, 0xFF));
+                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x00, 0x00, 0xFF)), "%02X", byte);
                     }
-
-                    if(i+j == emulator.getI())
+                    else if(i+j == emulator.getI() || i + j - 1 == emulator.getI())
                     {
                         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
-                        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0x00, 0xFF, 0x00, 0xFF));
+                        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xFF, 0x00, 0xFF)), "%02X", byte);
                     }
-
-                    ImGui::Text("%04X", byte *0x100 + byte2);
-
-                    if(i+j == emulator.getPC())
+                    else
                     {
-                        ImGui::PopStyleColor();
-                    }
-
-                    if(i+j == emulator.getI())
-                    {
-                        ImGui::PopStyleColor();
+                        ImGui::Text("%02X", byte);
                     }
                 }
+                ImGui::TableNextRow();
             }
 
             ImGui::EndTable();
