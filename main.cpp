@@ -89,13 +89,16 @@ int main()
     ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
     ImGui_ImplSDLRenderer2_Init(renderer);
 
+    // Create imgui settings vars
+    std::string imgui_status{};
+    int imgui_mem_view_follow{};
+
     // Play sound
     Mix_VolumeMusic(0);
     Mix_PlayMusic(beep, -1);
 
     // Vars for loop
     bool run{true};
-    std::string im_gui_status{};
 
     const std::map<SDL_Keycode, Chip8_t::Byte> key_translations
     {
@@ -243,7 +246,7 @@ int main()
         if(ImGui::Begin("Memory"))
         {
             // Set up table
-            ImGui::BeginTable("Mem", 5);
+            ImGui::BeginTable("Memview", 5);
             
             ImGui::TableSetupColumn("Addr");
             ImGui::TableSetupColumn("+0x00");
@@ -274,11 +277,20 @@ int main()
                     {
                         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
                         ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x00, 0x00, 0xFF)), "%02X", byte);
+                        if(imgui_mem_view_follow == 1) // yay magic numbers
+                        {
+                            ImGui::SetScrollHereY();
+                        }
+                        
                     }
                     else if(i+j == emulator.getI() || i + j - 1 == emulator.getI())
                     {
                         ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(0x33, 0x32, 0x2F, 0xFF), -1);
                         ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xFF, 0x00, 0xFF)), "%02X", byte);
+                        if(imgui_mem_view_follow == 2) // yay magic numbers 2
+                        {
+                            ImGui::SetScrollHereY();
+                        }
                     }
                     else
                     {
@@ -315,18 +327,18 @@ int main()
                 emulator.clearMemory();
                 if(!emulator.loadMemory(emu_rom_dir))
                 {
-                    im_gui_status = "FAILED TO LOAD ROM!";
+                    imgui_status = "FAILED TO LOAD ROM!";
                 }
                 else
                 {
-                    im_gui_status = "ROM LOADED!";
+                    imgui_status = "ROM LOADED!";
                 }
             }
 
             ImGui::SameLine();
             if(ImGui::Button("Clear memory"))
             {
-                im_gui_status = "MEMORY CLEARED!";
+                imgui_status = "MEMORY CLEARED!";
                 emu_updates_per_second = 0;
                 emulator.clearMemory();
             }
@@ -334,18 +346,20 @@ int main()
             ImGui::SameLine();
             if(ImGui::Button("Save state"))
             {
-                im_gui_status = "SAVED STATE!";
+                imgui_status = "SAVED STATE!";
                 emu_save_state = emulator.getSaveState();
             }
 
             ImGui::SameLine();
             if(ImGui::Button("Load state"))
             {
-                im_gui_status = "LOADED STATE!";
+                imgui_status = "LOADED STATE!";
                 emulator.loadSaveState(emu_save_state);
             }
 
-            ImGui::Text(("Status: " + im_gui_status).c_str());
+            ImGui::Text(("Status: " + imgui_status).c_str());
+
+            ImGui::Combo("Memory view cursor follow", &imgui_mem_view_follow, "None\0Instruction\0I");
 
             // -- Info --
             ImGui::NewLine();
@@ -401,6 +415,8 @@ int main()
             ImGui::EndTable();
 
             // Stack:
+            ImGui::NewLine();
+            ImGui::Text("Stack: ");
             ImGui::BeginTable("Stack", 2);
             ImGui::TableSetupColumn("Number (1 - top)");
             ImGui::TableSetupColumn("Value");
@@ -419,7 +435,7 @@ int main()
                 stack_copy.pop();
             }
 
-            for(int j{i}; j <= 5; ++j)
+            for(int j{i}; j <= 10; ++j)
             {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);

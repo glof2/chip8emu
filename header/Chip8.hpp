@@ -19,6 +19,13 @@ public:
         INVALID
     };
 
+    enum class BehaviourType
+    {
+        CHIP8,
+        SUPERCHIP,
+        INVALID,
+    };
+
     struct SaveState
     {
         Memory memory{Chip8Const::mem_size};
@@ -38,7 +45,7 @@ private:
     Timer m_sound_timer{}; 
     VarRegs m_regs{Chip8Const::reg_amount};
     KeyState m_key_states[Chip8Const::buttons];
-    bool m_legacy_beh{true};
+    BehaviourType m_behaviour{ BehaviourType::CHIP8 };
 
 
     // --- Private member functions ---
@@ -66,10 +73,10 @@ public:
 
     // --- Member functions ---
 
-    //  Name:           setLegacyBeh
-    //  Description:    switches the current legacy behaviour settings
-    //  Arguments:      value - the value to switch to: true - legacy behaviour is on, false - legacy behaviour is off
-    void setLegacyBeh(bool value);
+    //  Name:           setBehaviourType
+    //  Description:    switches the current emulator behaviour settings
+    //  Arguments:      type - the value to switch to
+    void setBehaviourType(BehaviourType type);
 
     //  Name:           loadMemory
     //  Description:    loads the file in provided path to the memory, the file should be a CHIP8 rom file
