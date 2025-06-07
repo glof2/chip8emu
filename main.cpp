@@ -10,6 +10,7 @@
 #define RENDER_SCALE 16
 #define DEBUG_MENU_ADD_W 48 * RENDER_SCALE
 #define DEBUG_MENU_ADD_H 24 * RENDER_SCALE
+#define MAX_ROM_DIR_LEN 128
 
 void displaySDLError(const std::string& msg)
 {
@@ -17,57 +18,21 @@ void displaySDLError(const std::string& msg)
     std::cout << "SDL_Error: " << SDL_GetError() << '\n';
 }
 
-std::string byteToHex(Chip8_t::Byte number)
-{
-    std::string result{};
-    for(int i{}; i < 2; ++i)
-    {
-        std::cout << "Current num: " << (int) number << ", hex digit: " << number % 16 << '\n';
-        int digit{ number % 16 };
-        char hex_char{};
-        if(digit <= 9)
-        {
-            hex_char = '0' + digit;
-        }
-        else
-        {
-            hex_char = 'A' + digit - 10;
-        }
-
-        result = hex_char + result;
-
-        number /= 16;
-    }
-
-    return result;
-}
 
 int main()
 {
-    std::cout << "Byte to hex 16: " << byteToHex(0xDE) << '\n'; 
-
     // TODO:
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
     // - Add debug controls with GUI (IMGUI)
+    // - Add platforms (CHIP8 variants)
 
     // Prepare emulator
     Chip8 emulator{};
-    std::cout << "Input rom file directory: ";
-    std::string rom_dir{};
-    std::cin >> rom_dir;
-    if(!emulator.load(rom_dir))
-    {
-        std::cout << "Failed to load ROM!\n";
-        return -1;
-    }
-
-    char legacy_beh{};
-    std::cout << "Legacy beh? (y for yes): ";
-    std::cin >> legacy_beh;
-    emulator.setLegacyBeh(legacy_beh == 'y');
-
-    std::cout << "Loaded ROM succesfuly!\n";
+    double emu_last_update{ (double) Timer::getTime() };
+    int emu_updates_per_second{0};
+    char emu_rom_dir[MAX_ROM_DIR_LEN]{};
+    Chip8::SaveState emu_save_state{emulator.getSaveState()};
 
     // Move this to a function for later cleanup (in case it fails in the middle!)
     // Prepare SDL
@@ -130,8 +95,7 @@ int main()
 
     // Vars for loop
     bool run{true};
-    double emu_last_update{ (double) Timer::getTime() };
-    int emu_updates_per_second{600};
+    std::string im_gui_status{};
 
     const std::map<SDL_Keycode, Chip8_t::Byte> key_translations
     {
@@ -348,6 +312,44 @@ int main()
             {
                 emulator.emulateStep();
             }
+
+            ImGui::InputText("ROM file directory", emu_rom_dir, MAX_ROM_DIR_LEN);
+            if(ImGui::Button("Load ROM"))
+            {
+                emulator.clearMemory();
+                if(!emulator.loadMemory(emu_rom_dir))
+                {
+                    im_gui_status = "FAILED TO LOAD ROM!";
+                }
+                else
+                {
+                    im_gui_status = "ROM LOADED!";
+                }
+            }
+
+            ImGui::SameLine();
+            if(ImGui::Button("Clear memory"))
+            {
+                im_gui_status = "MEMORY CLEARED!";
+                emu_updates_per_second = 0;
+                emulator.clearMemory();
+            }
+
+            ImGui::SameLine();
+            if(ImGui::Button("Save state"))
+            {
+                im_gui_status = "SAVED STATE!";
+                emu_save_state = emulator.getSaveState();
+            }
+
+            ImGui::SameLine();
+            if(ImGui::Button("Load state"))
+            {
+                im_gui_status = "LOADED STATE!";
+                emulator.loadSaveState(emu_save_state);
+            }
+
+            ImGui::Text(("Status: " + im_gui_status).c_str());
 
             // -- Info --
             ImGui::NewLine();

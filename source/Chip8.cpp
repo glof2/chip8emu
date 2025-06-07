@@ -491,48 +491,18 @@ void Chip8::decodeExecute(Chip8_t::Word operation)
 // --- Constructors ----
 
 Chip8::Chip8() : 
-    m_memory{Chip8Const::mem_size},
-    m_display{Chip8Const::screen_width, Chip8Const::screen_height},
-    m_PC{},
-    m_I{},
-    m_stack{},
-    m_delay_timer{},
-    m_sound_timer{}, 
-    m_regs{},
-    m_key_states{},
+//    m_memory{Chip8Const::mem_size},
+//    m_display{Chip8Const::screen_width, Chip8Const::screen_height},
+//    m_PC{},
+//    m_I{},/
+//    m_stack{},
+//    m_delay_timer{},
+//    m_sound_timer{}, 
+//    m_regs{},
+//    m_key_states{},
     m_legacy_beh{true}
 {
-    // Defaults vars
-
-
-    // Load fonts
-    Chip8_t::Byte m_font[]
-    {
-        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-        0x20, 0x60, 0x20, 0x20, 0x70, // 1
-        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-    };
-
-    for(int i{}; i < 80; ++i)
-    {
-        m_memory.write(Chip8Const::font_begin + i,  m_font[i]);
-    }
-
-    // Set PC
-    m_PC = 0x200;
+    clearMemory();
 }
 
 // --- Member functions ---
@@ -542,7 +512,7 @@ void Chip8::setLegacyBeh(bool value)
     m_legacy_beh = value;
 }
 
-bool Chip8::load(const std::string& path)
+bool Chip8::loadMemory(const std::string& path)
 {
     // Open file
     std::ifstream file{path, std::ios::binary};
@@ -566,6 +536,111 @@ bool Chip8::load(const std::string& path)
 
     file.close();
     return true;
+}
+
+void Chip8::clearMemory()
+{
+    Chip8_t::Byte m_font[]
+    {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+
+    // Set base memory
+    m_memory = {Chip8Const::mem_size};
+
+    for(int i{}; i < 80; ++i)
+    {
+        m_memory.write(Chip8Const::font_begin + i,  m_font[i]);
+    }
+
+    // Set display
+    m_display = {Chip8Const::screen_width, Chip8Const::screen_height};
+
+    // Set PC
+    m_PC = 0x200;
+
+    // Set I
+    m_I = 0;
+
+    // Set stack
+    m_stack = {};
+
+    // Set timers
+    m_delay_timer = {};
+    m_sound_timer = {};
+
+    // Set regs
+    m_regs = {Chip8Const::reg_amount};
+
+    // Key states
+    for(int i{}; i < Chip8Const::buttons; ++i)
+    {
+        m_key_states[i] = Chip8::KeyState::UP;
+    }
+}
+
+Chip8::SaveState Chip8::getSaveState()
+{
+    SaveState state{};
+
+    // Save memory
+    /*
+    for(Chip8_t::Word i{}; i < Chip8Const::mem_size; ++i)
+    {
+        state.memory.write(i, m_memory.read(i));
+    }
+    */
+    state.memory = m_memory;
+
+    // Save display
+    /*
+    for(Chip8_t::Word y{}; y < Chip8Const::screen_height; ++y)
+    {
+        for(Chip8_t::Word x{}; x < Chip8Const::screen_width; ++x)
+        {
+            state.display.setPixel(x, y, m_display.getPixel(x, y));
+        }
+    }
+    */
+    state.display = m_display;
+
+    // Save PC & I
+    state.PC = m_PC;
+    state.I = m_I;
+
+    // Save stack
+    state.stack = m_stack;
+
+    // Save regs
+    state.regs = m_regs;
+
+    return state;
+}
+
+void Chip8::loadSaveState(Chip8::SaveState state)
+{
+    m_memory = state.memory;
+    m_display = state.display;
+    m_PC = state.PC;
+    m_I = state.I;
+    m_stack = state.stack;
+    m_regs = state.regs;
+
 }
 
 void Chip8::emulateStep()

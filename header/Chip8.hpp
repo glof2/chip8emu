@@ -19,6 +19,15 @@ public:
         INVALID
     };
 
+    struct SaveState
+    {
+        Memory memory{Chip8Const::mem_size};
+        Display display{Chip8Const::screen_width, Chip8Const::screen_height};
+        Chip8_t::Word PC{};
+        Chip8_t::Word I{};
+        std::stack<Chip8_t::Word> stack{};
+        VarRegs regs{Chip8Const::reg_amount};
+    };
 private:
     Memory m_memory{Chip8Const::mem_size};
     Display m_display{Chip8Const::screen_width, Chip8Const::screen_height};
@@ -27,7 +36,7 @@ private:
     std::stack<Chip8_t::Word> m_stack{};
     Timer m_delay_timer{};
     Timer m_sound_timer{}; 
-    VarRegs m_regs{};
+    VarRegs m_regs{Chip8Const::reg_amount};
     KeyState m_key_states[Chip8Const::buttons];
     bool m_legacy_beh{true};
 
@@ -62,10 +71,24 @@ public:
     //  Arguments:      value - the value to switch to: true - legacy behaviour is on, false - legacy behaviour is off
     void setLegacyBeh(bool value);
 
-    //  Name:           load
+    //  Name:           loadMemory
     //  Description:    loads the file in provided path to the memory, the file should be a CHIP8 rom file
     //  Arguments:      path - the path to the CHIP8 file
-    bool load(const std::string& path);
+    bool loadMemory(const std::string& path);
+
+    //  Name:           clearMemory
+    //  Description:    clears the memory of the emulator
+    void clearMemory();
+
+    //  Name:           getSaveState
+    //  Description:    Copies the current emulator state and returns it
+    //  Return:         The save state
+    SaveState getSaveState();
+
+    //  Name:           loadSaveState
+    //  Description:    Loads the saved state
+    //  Arguments:      state - the save state to load
+    void loadSaveState(SaveState state);
 
     //  Name:           emulateStep
     //  Description:    emulates a single instruction (fetch, decode and execute) and updates the emulator state
