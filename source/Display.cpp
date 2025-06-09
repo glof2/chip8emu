@@ -9,7 +9,7 @@ Display::Display(Chip8_t::Word width, Chip8_t::Word height) : m_data(height, std
 
 void Display::setPixel(Chip8_t::Word x, Chip8_t::Word y, bool state)
 {
-    if(x > getWidth() || y > getHeight())
+    if(x >= getWidth() || y >= getHeight())
     {
         std::cout << "Attempting to write out-of-bounds to a Display!\n";
         std::cout << "The display size is: (" << getWidth() << ", " << getHeight() << ")\n";
@@ -21,7 +21,7 @@ void Display::setPixel(Chip8_t::Word x, Chip8_t::Word y, bool state)
 
 bool Display::getPixel(Chip8_t::Word x, Chip8_t::Word y)
 {
-    if(x > getWidth() || y > getHeight())
+    if(x >= getWidth() || y >= getHeight())
     {
         std::cout << "Attempting to read out-of-bounds to a Display!\n";
         std::cout << "The display size is: (" << getWidth() << ", " << getHeight() << ")\n";
@@ -33,7 +33,7 @@ bool Display::getPixel(Chip8_t::Word x, Chip8_t::Word y)
 
 void Display::flipPixel(Chip8_t::Word x, Chip8_t::Word y)
 {
-    if(x > getWidth() || y > getHeight())
+    if(x >= getWidth() || y >= getHeight())
     {
         std::cout << "Attempting to write out-of-bounds to a Display!\n";
         std::cout << "The display size is: (" << getWidth() << ", " << getHeight() << ")\n";

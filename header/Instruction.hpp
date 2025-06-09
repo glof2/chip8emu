@@ -44,7 +44,7 @@ public:
     //  Return:         The nibbles from 'from' to 'to' in a single number
     //                  for example for instruction: 0xDEAD
     //                  getNibbles(1,2) = 0xEA
-    std::uint64_t getNibbles(const std::uint16_t& from, const std::uint16_t& to) const;
+    Instr_t getNibbles(const std::uint16_t& from, const std::uint16_t& to) const;
     
     //  Name:           get
     //  Description:    returns the full instruction held by the class object

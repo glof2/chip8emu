@@ -50,7 +50,7 @@ std::uint8_t Instruction<Instr_t>::getNibble(const std::uint16_t& which) const
 }
 
 template <typename Instr_t>
-std::uint64_t Instruction<Instr_t>::getNibbles(const std::uint16_t& from, const std::uint16_t& to) const
+Instr_t Instruction<Instr_t>::getNibbles(const std::uint16_t& from, const std::uint16_t& to) const
 {
     // Check if nibbles are valid
     // sizeof(Instr_t) * 8 - size in bits

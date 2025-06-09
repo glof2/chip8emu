@@ -146,7 +146,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             Chip8_t::Byte set_value{};
             Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
             Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
-            Chip8_t::Byte vf_value{ (m_regs.read(0xF)) };
+            Chip8_t::Byte vf_value{ m_regs.read(0xF) };
             switch (instruction.getNibble(3))
             {
                 // 8XY0 - VX is set to VY
@@ -189,7 +189,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                     break;
                 }
 
-                // 8XY4 - Set VX to VX + VY, if the addition overflows VX (VX + VY > 0xFF) set VF to 1, otherwise set VF to 1
+                // 8XY4 - Set VX to VX + VY, if the addition overflows VX (VX + VY > 0xFF) set VF to 1, otherwise set VF to 0
                 case 0x4:
                 {
                     vf_value = Chip8_t::Byte(vx + vy > 0xFF);

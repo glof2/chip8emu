@@ -2,6 +2,7 @@
 #define CHIP8_HPP
 #include <string>
 #include <stack>
+#include <array>
 #include "Chip8Common.hpp"
 #include "Timer.hpp"
 #include "VarRegs.hpp"
@@ -45,7 +46,7 @@ private:
     Timer m_delay_timer{};
     Timer m_sound_timer{}; 
     VarRegs m_regs{Chip8Const::reg_amount};
-    KeyState m_key_states[Chip8Const::buttons];
+    std::array<KeyState, Chip8Const::buttons> m_key_states{};
     BehaviourType m_behaviour{ BehaviourType::CHIP8 };
 
 
