@@ -328,6 +328,8 @@ int main()
                 if(!emulator.loadMemory(emu_rom_dir))
                 {
                     imgui_status = "FAILED TO LOAD ROM!";
+                    emu_updates_per_second = 0;
+                    
                 }
                 else
                 {

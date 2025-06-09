@@ -75,7 +75,7 @@ std::uint64_t Instruction<Instr_t>::getNibbles(const std::uint16_t& from, const 
 }
 
 template <typename Instr_t>
-Instr_t Instruction<Instr_t>::get()
+Instr_t Instruction<Instr_t>::get() const
 {
     return m_instruction;
 }

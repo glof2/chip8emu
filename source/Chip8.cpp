@@ -289,7 +289,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // BXNN - Jump to XNN plus the value in register VX
 
             // Convert NNN to a single number
-            Chip8_t::Word dest{instruction.getNibbles(1, 3)};
+            Chip8_t::Word dest{ (Chip8_t::Word) instruction.getNibbles(1, 3)};
             
             // Add the appropriate register
             if(m_behaviour == Chip8::BehaviourType::CHIP8)
