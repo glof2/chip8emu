@@ -7,6 +7,7 @@
 #include "VarRegs.hpp"
 #include "Memory.hpp"
 #include "Display.hpp"
+#include "Instruction.hpp"
 
 class Chip8
 {
@@ -57,13 +58,13 @@ private:
 
     //  Name:           fetch
     //  Description:    returns the byte code for the current instruction
-    //  Return:         the byte code of the instruction that the instruction pointer is currently on
-    Chip8_t::Word fetch();
+    //  Return:         an Instruction class object containing the instruction
+    Instruction<Chip8_t::Word> fetch();
 
     //  Name:           decodeExecute
     //  Description:    decodes and executes the instruction given
-    //  Arguments:      operation - the instruction to decode and execute
-    void decodeExecute(Chip8_t::Word operation);
+    //  Arguments:      instruction - the instruction to decode and execute
+    void decodeExecute(const Instruction<Chip8_t::Word>& imstruction);
 
 public:  
     // --- Constructors ---

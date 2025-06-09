@@ -313,7 +313,7 @@ int main()
             ImGui::Text("Tools:");
 
             // Instructions per second slider
-            ImGui::SliderInt("Instructions per second", &emu_updates_per_second, 0, 2000);
+            ImGui::SliderInt("Instructions per second", &emu_updates_per_second, 0, 10000);
             
             // Next instruction
             if(ImGui::Button("Next Instruction"))
@@ -359,7 +359,7 @@ int main()
 
             ImGui::Text(("Status: " + imgui_status).c_str());
 
-            ImGui::Combo("Memory view cursor follow", &imgui_mem_view_follow, "None\0Instruction\0I");
+            ImGui::Combo("Memory view cursor follow", &imgui_mem_view_follow, "None\0Instruction\0I\0");
 
             // -- Info --
             ImGui::NewLine();
