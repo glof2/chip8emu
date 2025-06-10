@@ -21,6 +21,7 @@ void displaySDLError(const std::string& msg)
 
 int main()
 {
+    std::cout << "UPD:" << 1000.0 / 0.0 << '\n';
     // TODO:
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
@@ -33,6 +34,8 @@ int main()
     int emu_updates_per_second{0};
     char emu_rom_dir[MAX_ROM_DIR_LEN]{};
     Chip8::SaveState emu_save_state{emulator.getSaveState()};
+    float emu_fg[3]{0xFF/255.f, 0xFF/255.f, 0xFF/255.f};
+    float emu_bg[3]{0x00/255.f, 0x00/255.f, 0x00/255.f};
 
     // Move this to a function for later cleanup (in case it fails in the middle!)
     // Prepare SDL
@@ -61,7 +64,7 @@ int main()
     SDL_Renderer* renderer{SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)};
     if(renderer == NULL)
     {
-        displaySDLError("FAiled to create renderer!");
+        displaySDLError("Failed to create renderer!");
         return -1;
     }
 
@@ -92,6 +95,7 @@ int main()
     // Create imgui settings vars
     std::string imgui_status{};
     int imgui_mem_view_follow{};
+    double imgui_updates_per_sec_actual{emu_updates_per_second};
 
     // Play sound
     Mix_VolumeMusic(0);
@@ -169,6 +173,8 @@ int main()
             {
                 emulator.emulateStep();
             }
+
+            imgui_updates_per_sec_actual = amount_of_updates / (since_last_update / 1000.0);
             double time_unaccounted_for{ since_last_update - time_accounted_for }; 
             emu_last_update = (double)time_now - time_unaccounted_for;
         }
@@ -213,11 +219,11 @@ int main()
                 bool pixel{ emulator.getPixel(x, y) };
                 if(pixel)
                 {
-                    SDL_SetRenderDrawColor(renderer, 0x7D, 0x34, 0xEB, 0xFF);
+                    SDL_SetRenderDrawColor(renderer, emu_fg[0] * 0xFF, emu_fg[1] * 0xFF, emu_fg[2] * 0xFF, 0xFF);
                 }
                 else
                 {
-                    SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF);
+                    SDL_SetRenderDrawColor(renderer, emu_bg[0] * 0xFF, emu_bg[1] * 0xFF, emu_bg[2] * 0xFF, 0xFF);
                 }
                 SDL_RenderDrawPoint(renderer, x, y);   
             }
@@ -310,16 +316,32 @@ int main()
         if(ImGui::Begin("Debug tools & Info"))
         {
             // -- Tools --
-            ImGui::Text("Tools:");
+
+            // - Instructions settings -
+            ImGui::Text("Instructions settings:");
 
             // Instructions per second slider
-            ImGui::SliderInt("Instructions per second", &emu_updates_per_second, 0, 10000);
+            //ImGui::SliderInt("Instructions per second", &emu_updates_per_second, 0, 10000);
             
+            // Instructions per second set
+            //ImGui::InputInt("Instructions per second", &emu_updates_per_second, 1, 100);
+            ImGui::InputScalar("Instructions per second", ImGuiDataType_U32, &emu_updates_per_second, nullptr, nullptr, "%u");
+
             // Next instruction
             if(ImGui::Button("Next Instruction"))
             {
                 emulator.emulateStep();
             }
+
+            ImGui::SameLine();
+            
+            // Actual instr/sec
+            ImGui::Text("Actual instructions per second: %.02f", imgui_updates_per_sec_actual);
+            
+            
+            // - ROM settings -
+            ImGui::NewLine();
+            ImGui::Text("ROM settings:");
 
             ImGui::InputText("ROM file directory", emu_rom_dir, MAX_ROM_DIR_LEN);
             if(ImGui::Button("Load ROM"))
@@ -361,7 +383,41 @@ int main()
 
             ImGui::Text(("Status: " + imgui_status).c_str());
 
+            // - Other settings -
+            ImGui::NewLine();
+            ImGui::Text("Other settings:");
+
             ImGui::Combo("Memory view cursor follow", &imgui_mem_view_follow, "None\0Instruction\0I\0");
+
+
+            // Foreground color button
+            ImGui::Text("Foreground color: ");
+            ImGui::SameLine();
+            if(ImGui::ColorButton("ForegroundButton", {emu_fg[0], emu_fg[1], emu_fg[2], 0xFF}))
+            {
+                ImGui::OpenPopup("ForegroundColorPicker");
+            }
+            if(ImGui::BeginPopup("ForegroundColorPicker"))
+            {
+                ImGui::ColorPicker3("Foreground color", emu_fg);
+                ImGui::EndPopup();
+            }
+
+            // Background color button
+            ImGui::Text("Background color: ");
+            ImGui::SameLine();
+            if(ImGui::ColorButton("BackgroundButton", {emu_bg[0], emu_bg[1], emu_bg[2], 0xFF}))
+            {
+                ImGui::OpenPopup("BackgroundColorPicker");
+            }
+            if(ImGui::BeginPopup("BackgroundColorPicker"))
+            {
+                ImGui::ColorPicker3("Background color", emu_bg);
+                ImGui::EndPopup();
+            }
+
+            //
+            //ImGui::ColorPicker3("Background color", emu_bg, ImGuiColorEditFlags_NoPicker | ImGuiColorEditFlags_NoSidePreview);
 
             // -- Info --
             ImGui::NewLine();

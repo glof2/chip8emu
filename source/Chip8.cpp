@@ -771,7 +771,7 @@ void Chip8::execute(const std::string& which, const Instruction<Chip8_t::Word>& 
 {
     if(m_exec_map.find(which) == m_exec_map.end())
     {
-        printf("INVALID INSTRUCTION %s ORIGINATING FROM %04X", which.c_str(), instruction.get());
+        printf("INVALID INSTRUCTION %s ORIGINATING FROM %04X\n", which.c_str(), instruction.get());
         return;
     }
 
@@ -977,6 +977,18 @@ void Chip8::emulateStep()
 {
     // Fetch
     Instruction<Chip8_t::Word> operation{fetch()};
+
+    // Ensure PC and I validness
+    if(m_PC >= Chip8Const::mem_size)
+    {
+        printf("PC (%04X) out of bounds! Setting it to 0xFFF - 1!\n", m_PC);
+        m_PC = Chip8Const::mem_size - 2;
+    }
+    if(m_I >= Chip8Const::mem_size)
+    {
+        printf("I (%04X) out of bounds! Setting it to 0xFFF - 1!\n", m_PC);
+        m_I = Chip8Const::mem_size - 2;
+    }
 
     // Decode & Execute
     execute(decode(operation), operation);
