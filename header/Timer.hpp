@@ -6,9 +6,9 @@
 class Timer
 {
 private:
-    std::uint8_t  m_start_val{};
-    std::uint8_t  m_value{};
-    int64_t m_time_started{};
+    std::uint8_t m_start_val{};
+    std::uint8_t m_value{};
+    std::int64_t m_time_started{};
 
 public:
     Timer();
@@ -16,7 +16,7 @@ public:
     void update();
     std::uint8_t  get();
 
-    static int64_t getTime();
+    static std::int64_t getTime();
 };
 
 #endif

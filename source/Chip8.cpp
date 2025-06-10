@@ -29,19 +29,19 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // Possible instructions:
             // 00E0 - Clear screen
             // 00EE - Set PC to the value at top of the stack
-            switch (instruction.getNibble(3))
+            switch (instruction.getNibbles(2, 3))
             {
                 // 00E0 - Clear screen
-                case 0x0:
+                case 0xE0:
                 {
                     m_display.setAll(0);
                     break;
                 }
 
                 // 00EE - Set PC to the value at top of the stack
-                case 0xE:
+                case 0xEE:
                 {
-                    Chip8_t::Word location = m_stack.top();
+                    Chip8_t::Word location{m_stack.top()};
                     m_stack.pop();
                     jumpTo(location);
 
@@ -99,6 +99,13 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
         {
             // Possible instructions:
             // 5XY0 - Skip if values in VX == VY
+
+            if(instruction.getNibble(3) != 0x0)
+            {
+                std::cout << "Invalid instruction with first nibble = 0x5!\n";
+                break;
+            }
+
             Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
             Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
 
@@ -143,16 +150,15 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // Beh2:    ignore VY
             // Then:    Shift VX one bit to the left, set VF to 1 if the bit shifted out was 1, or 0 if was 0
             // 8XY
-            Chip8_t::Byte set_value{};
             Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
             Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
-            Chip8_t::Byte vf_value{ m_regs.read(0xF) };
+            Chip8_t::Byte vf{ m_regs.read(0xF) };
             switch (instruction.getNibble(3))
             {
                 // 8XY0 - VX is set to VY
                 case 0x0:
                 {
-                    set_value = vy;
+                    vx = vy;
                     break;
                 }
 
@@ -161,9 +167,9 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 {
                     if(m_behaviour == Chip8::BehaviourType::CHIP8)
                     {
-                        vf_value = 0;
+                        vf = 0;
                     }
-                    set_value = vx | vy;
+                    vx = vx | vy;
                     break;
                 }
 
@@ -172,9 +178,9 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 {
                     if(m_behaviour == Chip8::BehaviourType::CHIP8)
                     {
-                        vf_value = 0;
+                        vf = 0;
                     }
-                    set_value = vx & vy;
+                    vx = vx & vy;
                     break;
                 }
 
@@ -183,33 +189,33 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 {
                     if(m_behaviour == Chip8::BehaviourType::CHIP8)
                     {
-                        vf_value = 0;
+                        vf = 0;
                     }
-                    set_value = vx ^ vy;
+                    vx = vx ^ vy;
                     break;
                 }
 
                 // 8XY4 - Set VX to VX + VY, if the addition overflows VX (VX + VY > 0xFF) set VF to 1, otherwise set VF to 0
                 case 0x4:
                 {
-                    vf_value = Chip8_t::Byte(vx + vy > 0xFF);
-                    set_value = (Chip8_t::Byte) (vx + vy);
+                    vf = Chip8_t::Byte(vx + vy > 0xFF);
+                    vx = (Chip8_t::Byte) (vx + vy);
                     break;
                 }
 
                 // 8XY5 - Set VX to VX - VY, if VX >= VY then set VF to 1 , otherwise set VF to 0
                 case 0x5:
                 {
-                    vf_value = Chip8_t::Byte(vx >= vy);
-                    set_value = (Chip8_t::Byte)(vx - vy);
+                    vf = Chip8_t::Byte(vx >= vy);
+                    vx = (Chip8_t::Byte)(vx - vy);
                     break;
                 }
 
                 // 8XY7 - Set VX to VY - VX, if VY >= VX then set VF to 1 , otherwise set VF to 0
                 case 0x7:
                 {
-                    vf_value = Chip8_t::Byte(vy >= vx);
-                    set_value = (Chip8_t::Byte)(vy - vx);
+                    vf = Chip8_t::Byte(vy >= vx);
+                    vx = (Chip8_t::Byte)(vy - vx);
                     break;
                 }
 
@@ -223,9 +229,9 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                         vx = vy;
                     }
 
-                    vf_value = vx & 0b00000001;
+                    vf = vx & 0b00000001;
 
-                    set_value = vx >> 1;
+                    vx = vx >> 1;
 
                     break;
                 }
@@ -241,21 +247,17 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                     }
 
                     // Get the bit shifted out (if the result of vx & 0b10000000 > 0, then the bit shifted out was 1)
-                    vf_value = vx & 0b10000000;
-                    if (vf_value > 0)
-                    {
-                        vf_value = 1;
-                    }
+                    vf = Chip8_t::Byte((vx & 0b10000000) > 0);
 
-                    set_value = vx << 1;
+                    vx = vx << 1;
 
                     break;
                 }
                 
             }
 
-            m_regs.write(instruction.getNibble(1), set_value);
-            m_regs.write(0xF, vf_value);
+            m_regs.write(instruction.getNibble(1), vx);
+            m_regs.write(0xF, vf);
             
             break;
         }
@@ -263,6 +265,13 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
         {
             // Possible instructions:
             // 9XY0 - Skip one instruction if values in VX != VY
+
+            if(instruction.getNibble(3) != 0x0)
+            {
+                std::cout << "Invalid instruction with first nibble = 0x9!\n";
+                break;
+            }
+
             Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
             Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
 
@@ -485,6 +494,11 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                     Chip8_t::Byte num{ m_regs.read(instruction.getNibble(1)) };
                     for(char i{2}; i >= 0; --i)
                     {
+                        if(m_I + i >= m_memory.getSize())
+                        {
+                            std::cout << "FX33 ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
+                            break;
+                        }
                         m_memory.write(m_I + i, num % 10);
                         num /= 10;
                     }
@@ -496,6 +510,11 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 {
                     for(int i{}; i <= instruction.getNibble(1); ++i)
                     {
+                        if(m_I + i >= m_memory.getSize())
+                        {
+                            std::cout << "FX55 - ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
+                            break;
+                        }
                         m_memory.write(m_I + i, m_regs.read(i));
                     }
 
@@ -512,6 +531,11 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 {
                     for(int i{}; i <= instruction.getNibble(1); ++i)
                     {
+                        if(m_I + i >= m_memory.getSize())
+                        {
+                            std::cout << "FX65 - ATTEMPTED TO READ MEMORY OUT OF BOUNDS!\n";
+                            break;
+                        }
                         m_regs.write(i, m_memory.read(m_I + i));
                     }
 

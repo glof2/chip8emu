@@ -65,7 +65,7 @@ private:
     //  Name:           decodeExecute
     //  Description:    decodes and executes the instruction given
     //  Arguments:      instruction - the instruction to decode and execute
-    void decodeExecute(const Instruction<Chip8_t::Word>& imstruction);
+    void decodeExecute(const Instruction<Chip8_t::Word>& instruction);
 
 public:  
     // --- Constructors ---

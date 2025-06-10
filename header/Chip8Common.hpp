@@ -1,11 +1,12 @@
 #ifndef CHIP8_CONSTANTS
 #define CHIP8_CONSTANTS
-#include <stdint.h>
+#include <cstdint>
+
 
 namespace Chip8_t
 {
-    typedef uint8_t Byte;
-    typedef uint16_t Word;
+    typedef std::uint8_t Byte;
+    typedef std::uint16_t Word;
 }
 
 namespace Chip8Const

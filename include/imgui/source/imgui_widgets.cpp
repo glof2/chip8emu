@@ -45,7 +45,7 @@ Index of this file:
 #include "imgui_internal.h"
 
 // System includes
-#include <stdint.h>     // intptr_t
+#include <cstdint>     // intptr_t
 
 //-------------------------------------------------------------------------
 // Warnings

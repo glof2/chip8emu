@@ -1,7 +1,6 @@
 #include "../header/Timer.hpp"
-#include <iostream>
 
-int64_t Timer::getTime()
+std::int64_t Timer::getTime()
 {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 }
