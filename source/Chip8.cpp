@@ -455,8 +455,8 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 // FX0A - Waits until a key is pressed, if a key is pressed it's "value" is put in VX
                 case 0x0A:
                 {
-                    Chip8_t::Byte key{0xF+1};
-                    for(Chip8_t::Byte key_i{}; key_i <= 0xF; ++key_i)
+                    Chip8_t::Byte key{Chip8Const::buttons};
+                    for(Chip8_t::Byte key_i{}; key_i < Chip8Const::buttons; ++key_i)
                     {
                         if(m_key_states[key_i] == KeyState::JUST_RELEASED)
                         {
@@ -464,7 +464,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                             break;
                         }
                     }
-                    if(key > 0xF)
+                    if(key >= Chip8Const::buttons)
                     {
                         m_PC -= 2;
                     }
@@ -587,7 +587,7 @@ bool Chip8::loadMemory(const std::string& path)
 
     // Write file contents to memory
     Chip8_t::Byte byte{};
-    Chip8_t::Word index{0x200};
+    Chip8_t::Word index{Chip8Const::rom_mem_start};
     while(file.read(reinterpret_cast<char*>(&byte), 1))
     {
         m_memory.write(index, byte);
@@ -636,7 +636,7 @@ void Chip8::clearMemory()
     m_display = {Chip8Const::screen_width, Chip8Const::screen_height};
 
     // Set PC
-    m_PC = 0x200;
+    m_PC = Chip8Const::rom_mem_start;
 
     // Set I
     m_I = 0;
