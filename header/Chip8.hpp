@@ -3,6 +3,8 @@
 #include <string>
 #include <stack>
 #include <array>
+#include <map>
+#include <functional>
 #include "Chip8Common.hpp"
 #include "Timer.hpp"
 #include "VarRegs.hpp"
@@ -12,6 +14,45 @@
 
 class Chip8
 {
+private:
+    // ---- Emulator functions ----
+
+    void _00E0(const Instruction<Chip8_t::Word>& instr);
+    void _00EE(const Instruction<Chip8_t::Word>& instr);
+    void _0NNN(const Instruction<Chip8_t::Word>& instr);
+    void _1NNN(const Instruction<Chip8_t::Word>& instr);
+    void _2NNN(const Instruction<Chip8_t::Word>& instr);
+    void _3XNN(const Instruction<Chip8_t::Word>& instr);
+    void _4XNN(const Instruction<Chip8_t::Word>& instr);
+    void _5XY0(const Instruction<Chip8_t::Word>& instr);
+    void _6XNN(const Instruction<Chip8_t::Word>& instr);
+    void _7XNN(const Instruction<Chip8_t::Word>& instr);
+    void _8XY0(const Instruction<Chip8_t::Word>& instr);
+    void _8XY1(const Instruction<Chip8_t::Word>& instr);
+    void _8XY2(const Instruction<Chip8_t::Word>& instr);
+    void _8XY3(const Instruction<Chip8_t::Word>& instr);
+    void _8XY4(const Instruction<Chip8_t::Word>& instr);
+    void _8XY5(const Instruction<Chip8_t::Word>& instr);
+    void _8XY7(const Instruction<Chip8_t::Word>& instr);
+    void _8XY6(const Instruction<Chip8_t::Word>& instr);
+    void _8XYE(const Instruction<Chip8_t::Word>& instr);
+    void _9XY0(const Instruction<Chip8_t::Word>& instr);
+    void _ANNN(const Instruction<Chip8_t::Word>& instr);
+    void _BXNN(const Instruction<Chip8_t::Word>& instr);
+    void _CXNN(const Instruction<Chip8_t::Word>& instr);
+    void _DXYN(const Instruction<Chip8_t::Word>& instr);
+    void _EX9E(const Instruction<Chip8_t::Word>& instr);
+    void _EXA1(const Instruction<Chip8_t::Word>& instr);
+    void _FX07(const Instruction<Chip8_t::Word>& instr);
+    void _FX15(const Instruction<Chip8_t::Word>& instr);
+    void _FX18(const Instruction<Chip8_t::Word>& instr);
+    void _FX1E(const Instruction<Chip8_t::Word>& instr);
+    void _FX0A(const Instruction<Chip8_t::Word>& instr);
+    void _FX29(const Instruction<Chip8_t::Word>& instr);
+    void _FX33(const Instruction<Chip8_t::Word>& instr);
+    void _FX55(const Instruction<Chip8_t::Word>& instr);
+    void _FX65(const Instruction<Chip8_t::Word>& instr);
+
 public:
     enum class KeyState
     {
@@ -48,10 +89,10 @@ private:
     VarRegs m_regs{Chip8Const::reg_amount};
     std::array<KeyState, Chip8Const::buttons> m_key_states{};
     BehaviourType m_behaviour{ BehaviourType::CHIP8 };
-
+    std::map<std::string, std::function<void(const Instruction<Chip8_t::Word>&)>> m_exec_map{};
 
     // --- Private member functions ---
-    
+
     //  Name:           jumpTo
     //  Description:    makes the current instruction pointer jump to provided location
     //  Arguments:      location - the location in memory to jump to
@@ -65,7 +106,13 @@ private:
     //  Name:           decodeExecute
     //  Description:    decodes and executes the instruction given
     //  Arguments:      instruction - the instruction to decode and execute
-    void decodeExecute(const Instruction<Chip8_t::Word>& instruction);
+    std::string decode(const Instruction<Chip8_t::Word>& instruction);
+
+    //  Name:           execute
+    //  Description:    executes the provided instruction
+    //  Arguments:      which - which instruction to execute
+    //                  instruction - the instruction which caused this execute
+    void execute(const std::string& which, const Instruction<Chip8_t::Word>& instruction);
 
 public:  
     // --- Constructors ---

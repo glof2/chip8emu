@@ -4,6 +4,429 @@
 #include <random>
 #include "../header/Chip8.hpp"
 
+// ---- Emulator functions ----
+
+// 00E0 - Clear screen, argument name omitted to make compiler shut up
+void Chip8::_00E0(const Instruction<Chip8_t::Word>&)
+{
+    m_display.setAll(0);
+}
+
+// 00EE - Set PC to the value at top of the stack, argument name omitted to make compiler shut up
+void Chip8::_00EE(const Instruction<Chip8_t::Word>&)
+{
+    Chip8_t::Word location{m_stack.top()};
+    m_stack.pop();
+    jumpTo(location);
+}
+
+// 0NNN - not implemented!, argument name omitted to make compiler shut up
+void Chip8::_0NNN(const Instruction<Chip8_t::Word>&)
+{
+    std::cout << "UNINMPLEMENTED!\n";
+}
+
+// 1NNN - Jump to NNN
+void Chip8::_1NNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Word location{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
+    jumpTo(location);
+}
+
+// 2NNN - add current PC to stack, and jump to NNN
+void Chip8::_2NNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    m_stack.push(m_PC);
+    Chip8_t::Word location{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
+    jumpTo(location);
+}
+
+// 3XNN - Skip one instruction if value in VX == NN
+void Chip8::_3XNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte val_2{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
+
+    if(val_1 == val_2)
+    {
+        m_PC += 2;
+    }
+}
+
+// 4XNN - Skip one instruction if value in VX != NN
+void Chip8::_4XNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte val_2{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
+
+    if(val_1 != val_2)
+    {
+        m_PC += 2;
+    }
+}
+
+// 5XY0 - Skip if values in VX == VY
+void Chip8::_5XY0(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
+
+    if(val_1 == val_2)
+    {
+        m_PC += 2;
+    }
+}
+
+// 6XNN - set register VX to NN
+void Chip8::_6XNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte value{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
+    m_regs.write(instruction.getNibble(1), value);
+}
+
+// 7XNN - add NN to register VX
+void Chip8::_7XNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte value{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1))) };
+    Chip8_t::Byte add{ (Chip8_t::Byte) (instruction.getNibbles(2, 3)) };
+    m_regs.write(instruction.getNibble(1), value + add);
+}
+
+// 8XY0 -   set VX to VY
+void Chip8::_8XY0(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vy);
+}
+
+// 8XY1 -   set VX to bitwise OR of VX and VY
+void Chip8::_8XY1(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vx | vy);
+
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        m_regs.write(0xF, 0);
+    }
+}
+
+// 8XY2 -   set VX to bitwise AND of VX and VY
+void Chip8::_8XY2(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vx & vy);
+
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        m_regs.write(0xF, 0);
+    }
+}
+
+// 8XY3 -   set VX to bitwise XOR of VX and VY
+void Chip8::_8XY3(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vx ^ vy);
+
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        m_regs.write(0xF, 0);
+    }
+}
+
+// 8XY4 -   set VX to VX + VY, if VX+VY overflows VF is set to 1, otherwise to 0
+void Chip8::_8XY4(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vx + vy);
+    m_regs.write(0xF, vx + vy > 0xFF);
+}
+
+// 8XY5 -   set VX to VX - VY, if VX > VY set VF to 1, otherwise to 0
+void Chip8::_8XY5(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vx - vy);
+    m_regs.write(0xF, vx >= vy);
+}
+
+// 8XY7 -   set VX to VY - VX, if VY > VX set VF to 1, otherwise to 0
+void Chip8::_8XY7(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
+    m_regs.write(instruction.getNibble(1), vy - vx);
+    m_regs.write(0xF, vy >= vx);
+}
+
+// 8XY6 -   
+// Beh1:    set VX to VY
+// Beh2:    ignore VY
+// Then:    Shift VX one bit to the right, set VF to 1 if the bit shifted out was 1, or 0 if was 0
+void Chip8::_8XY6(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        vx = m_regs.read(instruction.getNibble(2));
+    }
+
+    m_regs.write(instruction.getNibble(1), vx >> 1);
+    m_regs.write(0xF, vx & 0b00000001);
+}
+
+// 8XYE -   
+// Beh1:    set VX to VY
+// Beh2:    ignore VY
+// Then:    Shift VX one bit to the left, set VF to 1 if the bit shifted out was 1, or 0 if was 0
+void Chip8::_8XYE(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        vx = m_regs.read(instruction.getNibble(2));
+    }
+
+    m_regs.write(instruction.getNibble(1), vx << 1);
+    m_regs.write(0xF, (vx & 0b10000000) > 0);
+}
+
+// 9XY0 - Skip one instruction if values in VX != VY
+void Chip8::_9XY0(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
+    Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
+
+    if(val_1 != val_2)
+    {
+        m_PC += 2;
+    }
+}
+
+// ANNN - set index I to NNN
+void Chip8::_ANNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Word value{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
+    m_I = value;
+}
+
+// Legacy:
+// BXNN - Jump to XNN plus the value in V0
+// New:
+// BXNN - Jump to XNN plus the value in register VX
+void Chip8::_BXNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    // Convert XNN to a single number
+    Chip8_t::Word dest{ (Chip8_t::Word) instruction.getNibbles(1, 3)};
+    
+    // Add the appropriate register
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        dest += m_regs.read(0x0);
+    }
+    else
+    {
+        dest += m_regs.read(instruction.getNibble(1));
+    }
+    
+    // Jump to it
+    jumpTo(dest);
+}
+
+// CXNN - generates a random number and binary ANDs it with NN, then puts the result in VX
+void Chip8::_CXNN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte random{ (Chip8_t::Byte) (rand() % (0xFF+1)) };
+    Chip8_t::Byte value{ (Chip8_t::Byte) (instruction.getNibbles(2, 3)) };
+    m_regs.write(instruction.getNibble(1), random & value);
+}
+
+// 0xDXYN - Draw a N height sprite to the screen at coordinates (VX, VY) from the location of the I registed
+//          if any of the pixels were flipped as a result of this set VF to 1, otherwise it's set to 0
+void Chip8::_DXYN(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte x{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % Chip8Const::screen_width) };
+    Chip8_t::Byte y{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(2)) % Chip8Const::screen_height) };
+    Chip8_t::Byte n{ (Chip8_t::Byte)(instruction.getNibble(3)) };
+
+    // Set VF register
+    m_regs.write(0xF, 0);
+
+    for(Chip8_t::Byte byte_i{}; byte_i < n; ++byte_i)
+    {
+        // Exit contition
+        if(y + byte_i >= m_display.getHeight())
+        {
+            break;
+        }
+
+        // Go through each bit in byte
+        for(char i{7}; i >= 0; --i)
+        {
+            Chip8_t::Byte bit_i{ (Chip8_t::Byte)(7 - i) };
+            Chip8_t::Byte mask{ (Chip8_t::Byte) (1 << i) };
+            Chip8_t::Byte masked_number{ (Chip8_t::Byte) (m_memory.read(m_I + byte_i) & mask) };
+            bool bit{ (bool) ((Chip8_t::Byte)(masked_number >> i)) };
+            
+            // Exit condition
+            if ( x + bit_i >= m_display.getWidth())
+            {
+                break;
+            }
+
+            // Draw
+            if(bit == true)
+            {
+                if(getPixel(x + bit_i, y + byte_i) == true)
+                {
+                    m_regs.write(0xF, 1);
+                }
+
+                m_display.flipPixel(x + bit_i, y + byte_i);
+            }
+
+            
+        }
+    }
+}
+
+// EX9E - Skip one instruction if the key corresponding to value in VX is pressed
+void Chip8::_EX9E(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte key{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % (Chip8Const::buttons))};
+    if(m_key_states[key] == Chip8::KeyState::DOWN) 
+    {
+        m_PC += 2;
+    }
+}
+
+// EXA1 - Skip one instruction if the key corresponding to value in VX is not pressed
+void Chip8::_EXA1(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte key{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % (Chip8Const::buttons))};
+    if(m_key_states[key] == Chip8::KeyState::UP || m_key_states[key] == Chip8::KeyState::JUST_RELEASED)
+    {
+        m_PC += 2;
+    }
+}
+
+// FX07 - set VX to current value of delay timer
+void Chip8::_FX07(const Instruction<Chip8_t::Word>& instruction)
+{
+    m_regs.write(instruction.getNibble(1), m_delay_timer.get());
+}
+
+// FX15 - set delay timer to current value in VX
+void Chip8::_FX15(const Instruction<Chip8_t::Word>& instruction)
+{
+    m_delay_timer.set(m_regs.read(instruction.getNibble(1)));
+}
+
+// FX18 - set sound timer to current value in VX
+void Chip8::_FX18(const Instruction<Chip8_t::Word>& instruction)
+{
+    m_sound_timer.set(m_regs.read(instruction.getNibble(1)));
+}
+
+// FX1E - add VX to I
+void Chip8::_FX1E(const Instruction<Chip8_t::Word>& instruction)
+{
+    m_I += m_regs.read(instruction.getNibble(1));
+}
+
+// FX0A - Waits until a key is pressed, if a key is pressed it's "value" is put in VX
+void Chip8::_FX0A(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte key{Chip8Const::buttons};
+    for(Chip8_t::Byte key_i{}; key_i < Chip8Const::buttons; ++key_i)
+    {
+        if(m_key_states[key_i] == KeyState::JUST_RELEASED)
+        {
+            key = key_i;
+            break;
+        }
+    }
+    if(key >= Chip8Const::buttons)
+    {
+        m_PC -= 2;
+    }
+    else
+    {
+        m_regs.write(instruction.getNibble(1), key);
+    }
+}
+
+// FX29 - set the I register to the address of hexadecimal character in VX
+void Chip8::_FX29(const Instruction<Chip8_t::Word>& instruction)
+{
+    // Get the second nibble (index 1)
+    Chip8_t::Byte m_char{ m_regs.read(instruction.getNibble(1)) };
+    m_char = m_char % (0xF+1);
+
+    // Set I to the font location
+    m_I = Chip8Const::font_begin + m_char * 5;
+}
+
+// FX33 - Take the number in VX, divide to 3 dec numbers (139 - 1, 3, 9), then store them in I, I+1, I+2
+void Chip8::_FX33(const Instruction<Chip8_t::Word>& instruction)
+{
+    Chip8_t::Byte num{ m_regs.read(instruction.getNibble(1)) };
+    for(char i{2}; i >= 0; --i)
+    {
+        if(m_I + i >= m_memory.getSize())
+        {
+            std::cout << "FX33 ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
+            break;
+        }
+        m_memory.write(m_I + i, num % 10);
+        num /= 10;
+    }
+}
+
+// FX55 - Set memory in I, to I+X with the values of V0 to VX
+void Chip8::_FX55(const Instruction<Chip8_t::Word>& instruction)
+{
+    for(int i{}; i <= instruction.getNibble(1); ++i)
+    {
+        if(m_I + i >= m_memory.getSize())
+        {
+            std::cout << "FX55 - ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
+            break;
+        }
+        m_memory.write(m_I + i, m_regs.read(i));
+    }
+
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        m_I += instruction.getNibble(1) + 1;
+    }
+}
+
+// FX65 - Set V0 to VX, with the value from memory of I to I+X
+void Chip8::_FX65(const Instruction<Chip8_t::Word>& instruction)
+{
+    for(int i{}; i <= instruction.getNibble(1); ++i)
+    {
+        if(m_I + i >= m_memory.getSize())
+        {
+            std::cout << "FX65 - ATTEMPTED TO READ MEMORY OUT OF BOUNDS!\n";
+            break;
+        }
+        m_regs.write(i, m_memory.read(m_I + i));
+    }
+
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    {
+        m_I += instruction.getNibble(1) + 1;
+    }
+}
+
 // --- Private member functions ---
 
 void Chip8::jumpTo(Chip8_t::Word location)
@@ -19,8 +442,9 @@ Instruction<Chip8_t::Word> Chip8::fetch()
     return operation;
 }
 
-void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
+std::string Chip8::decode(const Instruction<Chip8_t::Word>& instruction)
 {
+    std::string result{};
     // Decode & execute
     switch(instruction.getNibble(0))
     {
@@ -34,17 +458,14 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 // 00E0 - Clear screen
                 case 0xE0:
                 {
-                    m_display.setAll(0);
+                    result = "00E0";
                     break;
                 }
 
                 // 00EE - Set PC to the value at top of the stack
                 case 0xEE:
                 {
-                    Chip8_t::Word location{m_stack.top()};
-                    m_stack.pop();
-                    jumpTo(location);
-
+                    result = "00EE";
                     break;
                 }
             }
@@ -55,17 +476,14 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
         {
             // Possible instructions:
             // 0x1NNN - Jump to NNN
-            Chip8_t::Word location{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
-            jumpTo(location);
+            result = "1NNN";
             break;
         }
         case 0x2:
         {
             // Possible instructions:
             // 2NNN - add current PC to stack, and jump to NNN
-            m_stack.push(m_PC);
-            Chip8_t::Word location{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
-            jumpTo(location);
+            result = "2NNN";
 
             break;
         }
@@ -73,62 +491,40 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
         {
             // Possible instructions:
             // 3XNN - Skip one instruction if value in VX == NN
-            Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
-            Chip8_t::Byte val_2{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
-
-            if(val_1 == val_2)
-            {
-                m_PC += 2;
-            }
+            result = "3XNN";
             break;
         }
         case 0x4:
         {
             // Possible instructions:
             // 4XNN - Skip one instruction if value in VX != NN
-            Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
-            Chip8_t::Byte val_2{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
-
-            if(val_1 != val_2)
-            {
-                m_PC += 2;
-            }
+            result = "4XNN";
             break;
         }
         case 0x5:
         {
             // Possible instructions:
             // 5XY0 - Skip if values in VX == VY
-
             if(instruction.getNibble(3) != 0x0)
             {
-                std::cout << "Invalid instruction with first nibble = 0x5!\n";
                 break;
             }
 
-            Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
-            Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
-
-            if(val_1 == val_2)
-            {
-                m_PC += 2;
-            }
+            result = "5XY0";
             break;
         }
         case 0x6:
         {
             // Possible instructions:
             // 6XNN - set register VX to NN
-            Chip8_t::Byte value{ (Chip8_t::Byte)(instruction.getNibbles(2, 3)) };
-            m_regs.write(instruction.getNibble(1), value);
+            result = "6XNN";
+
             break;
         }
         case 0x7:
         {
             // 7XNN - add NN to register VX
-            Chip8_t::Byte value{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1))) };
-            Chip8_t::Byte add{ (Chip8_t::Byte) (instruction.getNibbles(2, 3)) };
-            m_regs.write(instruction.getNibble(1), value + add);
+            result = "7XNN";
             break;
         }
         case 0x8:
@@ -149,73 +545,54 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // Beh1:    set VX to VY
             // Beh2:    ignore VY
             // Then:    Shift VX one bit to the left, set VF to 1 if the bit shifted out was 1, or 0 if was 0
-            // 8XY
-            Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
-            Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
-            Chip8_t::Byte vf{ m_regs.read(0xF) };
             switch (instruction.getNibble(3))
             {
                 // 8XY0 - VX is set to VY
                 case 0x0:
                 {
-                    vx = vy;
+                    result = "8XY0";
                     break;
                 }
 
                 // 8XY1 - VX is set to bitwise OR of VX and VY, if on CHIP8 Cosmac set VF to 0
                 case 0x1:
                 {
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        vf = 0;
-                    }
-                    vx = vx | vy;
+                    result = "8XY1";
                     break;
                 }
 
                 // 8XY2 - VX is set to bitwise AND of VX and VY, if on CHIP8 Cosmac set VF to 0
                 case 0x2:
                 {
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        vf = 0;
-                    }
-                    vx = vx & vy;
+                    result = "8XY2";
                     break;
                 }
 
                 // 8XY3 - VX is set to VX XOR VY, if on CHIP8 Cosmac set VF to 0
                 case 0x3:
                 {
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        vf = 0;
-                    }
-                    vx = vx ^ vy;
+                    result = "8XY3";
                     break;
                 }
 
                 // 8XY4 - Set VX to VX + VY, if the addition overflows VX (VX + VY > 0xFF) set VF to 1, otherwise set VF to 0
                 case 0x4:
                 {
-                    vf = Chip8_t::Byte(vx + vy > 0xFF);
-                    vx = (Chip8_t::Byte) (vx + vy);
+                    result = "8XY4";
                     break;
                 }
 
                 // 8XY5 - Set VX to VX - VY, if VX >= VY then set VF to 1 , otherwise set VF to 0
                 case 0x5:
                 {
-                    vf = Chip8_t::Byte(vx >= vy);
-                    vx = (Chip8_t::Byte)(vx - vy);
+                    result = "8XY5";
                     break;
                 }
 
                 // 8XY7 - Set VX to VY - VX, if VY >= VX then set VF to 1 , otherwise set VF to 0
                 case 0x7:
                 {
-                    vf = Chip8_t::Byte(vy >= vx);
-                    vx = (Chip8_t::Byte)(vy - vx);
+                    result = "8XY7";
                     break;
                 }
 
@@ -224,15 +601,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 // LATER: Shift VX one bit to the right, set VF to the bit shifted out
                 case 0x6:
                 {
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        vx = vy;
-                    }
-
-                    vf = vx & 0b00000001;
-
-                    vx = vx >> 1;
-
+                    result = "8XY6";
                     break;
                 }
 
@@ -241,87 +610,42 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 // LATER: Shift VX one bit to the left, set VF to the bit shifted out
                 case 0xE:
                 {
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        vx = vy;
-                    }
-
-                    // Get the bit shifted out (if the result of vx & 0b10000000 > 0, then the bit shifted out was 1)
-                    vf = Chip8_t::Byte((vx & 0b10000000) > 0);
-
-                    vx = vx << 1;
-
+                    result = "8XYE";
                     break;
                 }
-                
             }
-
-            m_regs.write(instruction.getNibble(1), vx);
-            m_regs.write(0xF, vf);
-            
             break;
         }
         case 0x9:
         {
             // Possible instructions:
             // 9XY0 - Skip one instruction if values in VX != VY
-
             if(instruction.getNibble(3) != 0x0)
             {
-                std::cout << "Invalid instruction with first nibble = 0x9!\n";
                 break;
             }
-
-            Chip8_t::Byte val_1{ m_regs.read(instruction.getNibble(1)) };
-            Chip8_t::Byte val_2{ m_regs.read(instruction.getNibble(2)) };
-
-            if(val_1 != val_2)
-            {
-                m_PC += 2;
-            }
+            result = "9XY0";
             break;
         }
         case 0xA:
         {
             // Possible instructions
             // ANNN - set index I to NNN
-            Chip8_t::Word value{ (Chip8_t::Word)(instruction.getNibbles(1, 3)) };
-            m_I = value;
+            result = "ANNN";
             break;
         }
         case 0xB:
         {
             // Possible instructions:
-            // Legacy:
-            // BNNN - Jump to NNN plus the value in V0
-            // New:
-            // BXNN - Jump to XNN plus the value in register VX
-
-            // Convert NNN to a single number
-            Chip8_t::Word dest{ (Chip8_t::Word) instruction.getNibbles(1, 3)};
-            
-            // Add the appropriate register
-            if(m_behaviour == Chip8::BehaviourType::CHIP8)
-            {
-                dest += m_regs.read(0x0);
-            }
-            else
-            {
-                dest += m_regs.read(instruction.getNibble(1));
-            }
-            
-            // Jump to it
-            jumpTo(dest);
-
+            // BXNN - jump to XNN + V0, or jump to XNN + VX depending on quirks
+            result = "BXNN";
             break;
         }
         case 0xC:
         {
             // Possible instructions:
             // CXNN - generates a random number and binary ANDs it with NN, then puts the result in VX
-            Chip8_t::Byte random{ (Chip8_t::Byte) (rand() % 256) };
-            Chip8_t::Byte value{ (Chip8_t::Byte) (instruction.getNibbles(2, 3)) };
-            m_regs.write(instruction.getNibble(1), random & value);
+            result = "CXNN";
             break;
         }
         case 0xD:
@@ -329,52 +653,7 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // Possible instructions
             // 0xDXYN - Draw a N height sprite to the screen at coordinates (VX, VY) from the location of the I registed
             //          if any of the pixels were flipped as a result of this set VF to 1, otherwise it's set to 0
-
-
-            Chip8_t::Byte x{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % Chip8Const::screen_width) };
-            Chip8_t::Byte y{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(2)) % Chip8Const::screen_height) };
-            Chip8_t::Byte n{ (Chip8_t::Byte)(instruction.getNibble(3)) };
-
-            // Set VF register
-            m_regs.write(0xF, 0);
-
-            for(Chip8_t::Byte byte_i{}; byte_i < n; ++byte_i)
-            {
-                // Exit contition
-                if(y + byte_i >= m_display.getHeight())
-                {
-                    break;
-                }
-
-                // Go through each bit in byte
-                for(char i{7}; i >= 0; --i)
-                {
-                    Chip8_t::Byte bit_i{ (Chip8_t::Byte)(7 - i) };
-                    Chip8_t::Byte mask{ (Chip8_t::Byte) (1 << i) };
-                    Chip8_t::Byte masked_number{ (Chip8_t::Byte) (m_memory.read(m_I + byte_i) & mask) };
-                    bool bit{ (bool) ((Chip8_t::Byte)(masked_number >> i)) };
-                    
-                    // Exit condition
-                    if ( x + bit_i >= m_display.getWidth())
-                    {
-                        break;
-                    }
-
-                    // Draw
-                    if(bit == true)
-                    {
-                        if(getPixel(x + bit_i, y + byte_i) == true)
-                        {
-                            m_regs.write(0xF, 1);
-                        }
-
-                        m_display.flipPixel(x + bit_i, y + byte_i);
-                        //m_display[y + byte_i][x + bit_i] = !(m_display.data[y + byte_i][x + bit_i]);
-                    }
-
-                    
-                }
-            }
+            result = "DXYN";
             break;
         }
         case 0xE:
@@ -382,27 +661,21 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
             // Possible instructions:
             // EX9E - Skip one instruction if the key corresponding to value in VX is pressed
             // EXA1 - Skip one instruction if the key corresponding to value in VX is not pressed
+
             Chip8_t::Word val{ (Chip8_t::Byte) (instruction.getNibbles(2, 3)) };
-            Chip8_t::Byte key{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % (Chip8Const::buttons))};
             switch (val)
             {
                 // EX9E - Skip one instruction if the key corresponding to value in VX is pressed
                 case 0x9E:
                 {
-                    if(m_key_states[key] == Chip8::KeyState::DOWN) 
-                    {
-                        m_PC += 2;
-                    }
+                    result = "EX9E";
                     break;
                 }
 
                 // EXA1 - Skip one instruction if the key corresponding to value in VX is not pressed
                 case 0xA1:
                 {
-                    if(m_key_states[key] == Chip8::KeyState::UP || m_key_states[key] == Chip8::KeyState::JUST_RELEASED)
-                    {
-                        m_PC += 2;
-                    }
+                    result = "EXA1";
                     break;
                 }
             }
@@ -427,129 +700,82 @@ void Chip8::decodeExecute(const Instruction<Chip8_t::Word>& instruction)
                 // FX07 - set VX to current value of delay timer
                 case 0x07:
                 {
-                    m_regs.write(instruction.getNibble(1), m_delay_timer.get());
+                    result = "FX07";
                     break;
                 }
 
                 // FX15 - set delay timer to current value in VX
                 case 0x15:
                 {
-                    m_delay_timer.set(m_regs.read(instruction.getNibble(1)));
+                    result = "FX15";
                     break;
                 }
 
                 // FX18 - set sound timer to current value in VX
                 case 0x18:
                 {
-                    m_sound_timer.set(m_regs.read(instruction.getNibble(1)));
+                    result = "FX18";
                     break;
                 }
 
                 // FX1E - add VX to I
                 case 0x1E:
                 {
-                    m_I += m_regs.read(instruction.getNibble(1));
+                    result = "FX1E";
                     break;
                 }
 
                 // FX0A - Waits until a key is pressed, if a key is pressed it's "value" is put in VX
                 case 0x0A:
                 {
-                    Chip8_t::Byte key{Chip8Const::buttons};
-                    for(Chip8_t::Byte key_i{}; key_i < Chip8Const::buttons; ++key_i)
-                    {
-                        if(m_key_states[key_i] == KeyState::JUST_RELEASED)
-                        {
-                            key = key_i;
-                            break;
-                        }
-                    }
-                    if(key >= Chip8Const::buttons)
-                    {
-                        m_PC -= 2;
-                    }
-                    else
-                    {
-                        m_regs.write(instruction.getNibble(1), key);
-                    }
+                    result = "FX0A";
                     break;
                 }
 
                 // FX29 - set the I register to the address of hexadecimal character in VX
                 case 0x29:
                 {
-                    // Get the second nibble
-                    Chip8_t::Byte m_char{ m_regs.read(instruction.getNibble(1)) };
-                    m_char = m_char & 0b00001111;
-
-                    // Set I to the font location
-                    m_I = Chip8Const::font_begin + m_char * 5;
-
+                    result = "FX29";
                     break;
                 }
 
                 // FX33 - Take the number in VX, divide to 3 dec numbers (139 - 1, 3, 9), then store them in I, I+1, I+2
                 case 0x33:
                 {
-                    Chip8_t::Byte num{ m_regs.read(instruction.getNibble(1)) };
-                    for(char i{2}; i >= 0; --i)
-                    {
-                        if(m_I + i >= m_memory.getSize())
-                        {
-                            std::cout << "FX33 ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
-                            break;
-                        }
-                        m_memory.write(m_I + i, num % 10);
-                        num /= 10;
-                    }
+                    result = "FX33";
                     break;
                 }
 
                 // FX55 - Set memory in I, to I+X with the values of registers V0 to VX
                 case 0x55:
                 {
-                    for(int i{}; i <= instruction.getNibble(1); ++i)
-                    {
-                        if(m_I + i >= m_memory.getSize())
-                        {
-                            std::cout << "FX55 - ATTEMPTED TO WRITE MEMORY OUT OF BOUNDS!\n";
-                            break;
-                        }
-                        m_memory.write(m_I + i, m_regs.read(i));
-                    }
-
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        m_I += instruction.getNibble(1) + 1;
-                    }
-
+                    result = "FX55";
                     break;
                 }
 
                 // FX65 - Set registers V0 to VX, with the values from memory of I to I+X
                 case 0x65:
                 {
-                    for(int i{}; i <= instruction.getNibble(1); ++i)
-                    {
-                        if(m_I + i >= m_memory.getSize())
-                        {
-                            std::cout << "FX65 - ATTEMPTED TO READ MEMORY OUT OF BOUNDS!\n";
-                            break;
-                        }
-                        m_regs.write(i, m_memory.read(m_I + i));
-                    }
-
-                    if(m_behaviour == Chip8::BehaviourType::CHIP8)
-                    {
-                        m_I += instruction.getNibble(1) + 1;
-                    }
+                    result = "FX65";
                     break;
                 }
             }
-
             break;
         }
     }
+
+    return result;
+}
+
+void Chip8::execute(const std::string& which, const Instruction<Chip8_t::Word>& instruction)
+{
+    if(m_exec_map.find(which) == m_exec_map.end())
+    {
+        printf("INVALID INSTRUCTION %s ORIGINATING FROM %04X", which.c_str(), instruction.get());
+        return;
+    }
+
+    (m_exec_map.at(which))(instruction);
 }
 
 // --- Constructors ----
@@ -567,6 +793,46 @@ Chip8::Chip8() :
     m_behaviour{Chip8::BehaviourType::CHIP8}
 {
     clearMemory();
+
+    // Initalize exec map
+    m_exec_map = 
+    {
+        {"00E0", std::bind(&Chip8::_00E0, this, std::placeholders::_1)},
+        {"00EE", std::bind(&Chip8::_00EE, this, std::placeholders::_1)},
+        {"0NNN", std::bind(&Chip8::_0NNN, this, std::placeholders::_1)},
+        {"1NNN", std::bind(&Chip8::_1NNN, this, std::placeholders::_1)},
+        {"2NNN", std::bind(&Chip8::_2NNN, this, std::placeholders::_1)},
+        {"3XNN", std::bind(&Chip8::_3XNN, this, std::placeholders::_1)},
+        {"4XNN", std::bind(&Chip8::_4XNN, this, std::placeholders::_1)},
+        {"5XY0", std::bind(&Chip8::_5XY0, this, std::placeholders::_1)},
+        {"6XNN", std::bind(&Chip8::_6XNN, this, std::placeholders::_1)},
+        {"7XNN", std::bind(&Chip8::_7XNN, this, std::placeholders::_1)},
+        {"8XY0", std::bind(&Chip8::_8XY0, this, std::placeholders::_1)},
+        {"8XY1", std::bind(&Chip8::_8XY1, this, std::placeholders::_1)},
+        {"8XY2", std::bind(&Chip8::_8XY2, this, std::placeholders::_1)},
+        {"8XY3", std::bind(&Chip8::_8XY3, this, std::placeholders::_1)},
+        {"8XY4", std::bind(&Chip8::_8XY4, this, std::placeholders::_1)},
+        {"8XY5", std::bind(&Chip8::_8XY5, this, std::placeholders::_1)},
+        {"8XY6", std::bind(&Chip8::_8XY6, this, std::placeholders::_1)},
+        {"8XY7", std::bind(&Chip8::_8XY7, this, std::placeholders::_1)},
+        {"8XYE", std::bind(&Chip8::_8XYE, this, std::placeholders::_1)},
+        {"9XY0", std::bind(&Chip8::_9XY0, this, std::placeholders::_1)},
+        {"ANNN", std::bind(&Chip8::_ANNN, this, std::placeholders::_1)},
+        {"BXNN", std::bind(&Chip8::_BXNN, this, std::placeholders::_1)},
+        {"CXNN", std::bind(&Chip8::_CXNN, this, std::placeholders::_1)},
+        {"DXYN", std::bind(&Chip8::_DXYN, this, std::placeholders::_1)},
+        {"EX9E", std::bind(&Chip8::_EX9E, this, std::placeholders::_1)},
+        {"EXA1", std::bind(&Chip8::_EXA1, this, std::placeholders::_1)},
+        {"FX07", std::bind(&Chip8::_FX07, this, std::placeholders::_1)},
+        {"FX0A", std::bind(&Chip8::_FX0A, this, std::placeholders::_1)},
+        {"FX15", std::bind(&Chip8::_FX15, this, std::placeholders::_1)},
+        {"FX18", std::bind(&Chip8::_FX18, this, std::placeholders::_1)},
+        {"FX1E", std::bind(&Chip8::_FX1E, this, std::placeholders::_1)},
+        {"FX29", std::bind(&Chip8::_FX29, this, std::placeholders::_1)},
+        {"FX33", std::bind(&Chip8::_FX33, this, std::placeholders::_1)},
+        {"FX55", std::bind(&Chip8::_FX55, this, std::placeholders::_1)},
+        {"FX65", std::bind(&Chip8::_FX65, this, std::placeholders::_1)},
+    };
 }
 
 // --- Member functions ---
@@ -713,7 +979,7 @@ void Chip8::emulateStep()
     Instruction<Chip8_t::Word> operation{fetch()};
 
     // Decode & Execute
-    decodeExecute(operation);
+    execute(decode(operation), operation);
 }
 
 bool Chip8::getPixel(Chip8_t::Byte x, Chip8_t::Byte y)

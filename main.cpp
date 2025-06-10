@@ -173,8 +173,8 @@ int main()
             emu_last_update = (double)time_now - time_unaccounted_for;
         }
 
-        // -- Set just released keys to down --
-        for(const std::pair<SDL_Keycode, Chip8_t::Byte>& key : key_translations)
+        // -- Set just released keys to down
+        for(const std::pair<const SDL_Keycode, Chip8_t::Byte>& key : key_translations)
         {
             if(emulator.getKeyState(key.second) == Chip8::KeyState::JUST_RELEASED)
             {
