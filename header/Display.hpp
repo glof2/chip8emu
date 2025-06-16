@@ -7,6 +7,14 @@ class Display
 {
 private:
     std::vector<std::vector<bool>> m_data{};
+    Chip8_t::Word m_width{};
+    Chip8_t::Word m_height{};
+
+    // --- Private member functions ---
+
+    //  Name:           update
+    //  Description:    updates the internal size of display (width, height)
+    void update();
 public:
     // --- Constructors ---
 
@@ -51,6 +59,12 @@ public:
     //  Description:    returns the height of the Display
     //  Return:         the height of the display
     Chip8_t::Word getHeight();
+
+    //  Name:           setSize
+    //  Description:    sets the display size to new provided values
+    //  Arguments:      width - the new witdth
+    //                  height - the new height
+    void setSize(const Chip8_t::Word& width, const Chip8_t::Word& height);
 };
 
 #endif

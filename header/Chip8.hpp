@@ -17,6 +17,7 @@ class Chip8
 private:
     // ---- Emulator functions ----
 
+    // REGULAR CHIP
     void _00E0(const Instruction<Chip8_t::Word>& instr);
     void _00EE(const Instruction<Chip8_t::Word>& instr);
     void _0NNN(const Instruction<Chip8_t::Word>& instr);
@@ -53,6 +54,17 @@ private:
     void _FX55(const Instruction<Chip8_t::Word>& instr);
     void _FX65(const Instruction<Chip8_t::Word>& instr);
 
+    // SUPERCHIP
+    void _00CN(const Instruction<Chip8_t::Word>& instr);
+    void _00FB(const Instruction<Chip8_t::Word>& instr);
+    void _00FC(const Instruction<Chip8_t::Word>& instr);
+    void _00FD(const Instruction<Chip8_t::Word>& instr);
+    void _00FE(const Instruction<Chip8_t::Word>& instr);
+    void _00FF(const Instruction<Chip8_t::Word>& instr);
+    void _FX30(const Instruction<Chip8_t::Word>& instr);
+    void _FX75(const Instruction<Chip8_t::Word>& instr);
+    void _FX85(const Instruction<Chip8_t::Word>& instr);
+
 public:
     enum class KeyState
     {
@@ -72,7 +84,7 @@ public:
     struct SaveState
     {
         Memory memory{Chip8Const::mem_size};
-        Display display{Chip8Const::screen_width, Chip8Const::screen_height};
+        Display display{Chip8Const::lowres_screen_width, Chip8Const::lowres_screen_height};
         Chip8_t::Word PC{};
         Chip8_t::Word I{};
         std::stack<Chip8_t::Word> stack{};
@@ -80,7 +92,7 @@ public:
     };
 private:
     Memory m_memory{Chip8Const::mem_size};
-    Display m_display{Chip8Const::screen_width, Chip8Const::screen_height};
+    Display m_display{Chip8Const::lowres_screen_width, Chip8Const::lowres_screen_height};
     Chip8_t::Word m_PC{};
     Chip8_t::Word m_I{};
     std::stack<Chip8_t::Word> m_stack{};
@@ -92,6 +104,10 @@ private:
     std::map<std::string, std::function<void(const Instruction<Chip8_t::Word>&)>> m_exec_map{};
 
     // --- Private member functions ---
+
+    void drawRegular(const Chip8_t::Byte& x, const Chip8_t::Byte& y, const Chip8_t::Byte& n);
+    void drawSChipSpecial(const Chip8_t::Byte& x, const Chip8_t::Byte& y);
+    void drawByte(const Chip8_t::Byte& sprite, Chip8_t::Byte x, Chip8_t::Byte y);
 
     //  Name:           jumpTo
     //  Description:    makes the current instruction pointer jump to provided location
@@ -126,6 +142,11 @@ public:
     //  Description:    switches the current emulator behaviour settings
     //  Arguments:      type - the value to switch to
     void setBehaviourType(BehaviourType type);
+
+    //  Name:           getBehaviourType
+    //  Description:    gets current emulator behaviour settings
+    //  Return value:   the current behaviour setting
+    Chip8::BehaviourType getBehaviourType();
 
     //  Name:           loadMemory
     //  Description:    loads the file in provided path to the memory, the file should be a CHIP8 rom file
@@ -210,6 +231,16 @@ public:
     //  Description:    returns the sound timer value
     //  Return:         the sound timer value
     std::uint8_t getSoundTimerValue();
+
+    //  Name:           getScreenWidth
+    //  Description:    returns the width of the emulators' screen
+    //  Return:         the width of the emulator's screen
+    std::uint8_t getScreenWidth();
+
+    //  Name:           getScreenHeight
+    //  Description:    returns the height of the emulators' screen
+    //  Return:         the height of the emulator's screen
+    std::uint8_t getScreenHeight();
 };
 
 #endif

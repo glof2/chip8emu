@@ -28,7 +28,12 @@ add_executable(emulator ${MAIN_FILE} ${SRC_FILES} ${IMGUI_SRC})
 target_include_directories(emulator PRIVATE include/imgui/header)
 
 # Link SDL2 and SDL2_mixer (assumes installed via system package manager)
-find_package(SDL2 REQUIRED)
-find_package(SDL2_mixer REQUIRED)
+#find_package(SDL2 REQUIRED)
+#find_package(SDL2_mixer REQUIRED)
 
-target_link_libraries(emulator SDL2::SDL2 SDL2_mixer::SDL2_mixer)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SDL2 REQUIRED sdl2-compat)
+pkg_check_modules(SDL2_mixer REQUIRED SDL2_mixer)
+
+target_include_directories(emulator PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_mixer_INCLUDE_DIRS})
+target_link_libraries(emulator ${SDL2_LIBRARIES} ${SDL2_mixer_LIBRARIES})

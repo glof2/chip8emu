@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iomanip>
 #include <random>
+#include <array>
 #include "../header/Chip8.hpp"
 
 // ---- Emulator functions ----
@@ -251,49 +252,26 @@ void Chip8::_CXNN(const Instruction<Chip8_t::Word>& instruction)
 //          if any of the pixels were flipped as a result of this set VF to 1, otherwise it's set to 0
 void Chip8::_DXYN(const Instruction<Chip8_t::Word>& instruction)
 {
-    Chip8_t::Byte x{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % Chip8Const::screen_width) };
-    Chip8_t::Byte y{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(2)) % Chip8Const::screen_height) };
+    Chip8_t::Byte x{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(1)) % m_display.getWidth()) };
+    Chip8_t::Byte y{ (Chip8_t::Byte)(m_regs.read(instruction.getNibble(2)) % m_display.getHeight()) };
     Chip8_t::Byte n{ (Chip8_t::Byte)(instruction.getNibble(3)) };
 
-    // Set VF register
-    m_regs.write(0xF, 0);
-
-    for(Chip8_t::Byte byte_i{}; byte_i < n; ++byte_i)
+    if(m_behaviour == Chip8::BehaviourType::CHIP8)
     {
-        // Exit contition
-        if(y + byte_i >= m_display.getHeight())
+        drawRegular(x,y,n);
+    }
+    else if (m_behaviour == Chip8::BehaviourType::SUPERCHIP)
+    {
+        if (instruction.getNibble(3) == 0)
         {
-            break;
+            drawSChipSpecial(x, y);
         }
-
-        // Go through each bit in byte
-        for(char i{7}; i >= 0; --i)
+        else
         {
-            Chip8_t::Byte bit_i{ (Chip8_t::Byte)(7 - i) };
-            Chip8_t::Byte mask{ (Chip8_t::Byte) (1 << i) };
-            Chip8_t::Byte masked_number{ (Chip8_t::Byte) (m_memory.read(m_I + byte_i) & mask) };
-            bool bit{ (bool) ((Chip8_t::Byte)(masked_number >> i)) };
-            
-            // Exit condition
-            if ( x + bit_i >= m_display.getWidth())
-            {
-                break;
-            }
-
-            // Draw
-            if(bit == true)
-            {
-                if(getPixel(x + bit_i, y + byte_i) == true)
-                {
-                    m_regs.write(0xF, 1);
-                }
-
-                m_display.flipPixel(x + bit_i, y + byte_i);
-            }
-
-            
+            drawRegular(x,y,n);
         }
     }
+
 }
 
 // EX9E - Skip one instruction if the key corresponding to value in VX is pressed
@@ -370,7 +348,7 @@ void Chip8::_FX29(const Instruction<Chip8_t::Word>& instruction)
     m_char = m_char % (0xF+1);
 
     // Set I to the font location
-    m_I = Chip8Const::font_begin + m_char * 5;
+    m_I = Chip8Const::lowres_font_begin + m_char * 5;
 }
 
 // FX33 - Take the number in VX, divide to 3 dec numbers (139 - 1, 3, 9), then store them in I, I+1, I+2
@@ -427,14 +405,251 @@ void Chip8::_FX65(const Instruction<Chip8_t::Word>& instruction)
     }
 }
 
+// SUPERCHIP
+
+// 00CN - Scroll content down N pixels
+void Chip8::_00CN(const Instruction<Chip8_t::Word>& instr)
+{
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00CN, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+
+
+    Chip8_t::Byte n{instr.getNibble(3)};
+    if (n == 0)
+    {
+        return;
+    }
+
+
+
+    // Shift pixels
+    // The loop goes from the bottom of the display - n to the top
+    // Then it runs through all the pixels in it's current row
+    // It first copies the pixel it is on into the pixel n pixels below, then clears the current pixel
+    // this way the top N rows are cleared, since they aren't overwritten later
+    for(int y{ (int)(m_display.getHeight() - 1 - n)}; y >= 0; --y)
+    {
+        for(Chip8_t::Word x{}; x < m_display.getWidth(); ++x)
+        {
+            m_display.setPixel(x, y+n, m_display.getPixel(x, y));
+            m_display.setPixel(x, y, 0);
+        }
+    }
+}
+
+// 00FB - Scroll content right by 4 pixels
+void Chip8::_00FB(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00FB, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+
+    constexpr std::uint8_t shift_amount{4};
+
+    // Shift pixels
+
+    // The loop goes from the rightmost column of the display (minus N) to the leftmost column
+    // Then it runs through all the pixels in it's current column
+    // It first copies the pixel it is on into the pixel 4 pixels to the right, then clears the current pixel
+    // this way the leftmost 4 columns are cleared, since they aren't overwritten later
+    for(int x{ (int)(m_display.getWidth() - 1 - shift_amount)}; x >= 0; --x)
+    {
+        for(Chip8_t::Word y{}; y < m_display.getHeight(); ++y)
+        {
+            m_display.setPixel(x+shift_amount, y, m_display.getPixel(x, y));
+            m_display.setPixel(x, y, 0);
+        }
+    }
+}
+
+// Scroll screen content left by 4 pixels
+void Chip8::_00FC(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00FC, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+
+    constexpr std::uint8_t shift_amount{4};
+
+    // Shift pixels
+    // The loop goes from the leftmost column of the display (plus N) to the rightmost column
+    // Then it runs through all the pixels in it's current column
+    // It first copies the pixel it is on into the pixel 4 pixels to the left, then clears the current pixel
+    // this way 4 rightmost columns are cleared, since they aren't overwritten later
+    for(int x{ (int)(shift_amount)}; x < m_display.getWidth(); ++x)
+    {
+        for(Chip8_t::Word y{}; y < m_display.getHeight(); ++y)
+        {
+            m_display.setPixel(x-shift_amount, y, m_display.getPixel(x, y));
+            m_display.setPixel(x, y, 0);
+        }
+    }
+}
+
+// 00FD - Exit interpreter
+void Chip8::_00FD(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00FD, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+    // For emulation purposes, just enter an infinite loop
+    m_PC -= 2;
+}
+
+// 00FE - Switch to low res mode and (SCHIP modern) clear the screen
+void Chip8::_00FE(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00FE, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+    m_display.setSize(Chip8Const::lowres_screen_width, Chip8Const::lowres_screen_height);
+    m_display.setAll(0);
+}
+
+// 00FF - Switch to high res mode and (SCHIP modern) clear the screen
+void Chip8::_00FF(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call 00FF, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+    m_display.setSize(Chip8Const::highres_screen_width, Chip8Const::highres_screen_height);
+    m_display.setAll(0);
+}
+
+// FX30 - Set I to the 10 lines high font sprite for VX
+void Chip8::_FX30(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call FX30, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+
+    // Get the second nibble (index 1)
+    Chip8_t::Byte m_char{ m_regs.read(instr.getNibble(1)) };
+    m_char = m_char % (0xF+1);
+
+    // Set I to the font location
+    m_I = Chip8Const::highres_font_begin + m_char * 10;
+}
+
+// FX75 - Store the content of the registers V0 to VX into flags storage
+void Chip8::_FX75(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call FX75, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+    std::cout << "FX75 - NOT IMPLEMENTED!\n";
+}
+
+// FX85 - Store the content of the registers V0 to VX into flags storage
+void Chip8::_FX85(const Instruction<Chip8_t::Word>& instr)
+{
+    // Guard clause, ensure instruction execution is valid
+    if(m_behaviour != Chip8::BehaviourType::SUPERCHIP)
+    {
+        std::cout << "Tried to call FX85, but behaviour mode isn't SCHIP!\n";
+        return;
+    }
+    std::cout << "FX85 - NOT IMPLEMENTED!\n";
+}
+
 // --- Private member functions ---
+
+void Chip8::drawRegular(const Chip8_t::Byte& x, const Chip8_t::Byte& y, const Chip8_t::Byte& n)
+{
+    // Set VF register
+    m_regs.write(0xF, 0);
+
+    for(Chip8_t::Byte byte_i{}; byte_i < n; ++byte_i)
+    {
+        // Exit condition
+        if(y + byte_i >= m_display.getHeight())
+        {
+            break;
+        }
+
+        drawByte(m_memory.read(m_I + byte_i), x, y + byte_i);
+    }
+}
+
+void Chip8::drawSChipSpecial(const Chip8_t::Byte& x, const Chip8_t::Byte& y)
+{
+    // Set VF register
+    m_regs.write(0xF, 0);
+
+    // Draw a 16x16 spire
+    for(Chip8_t::Byte byte_i{}; byte_i < 32; byte_i += 2)
+    {
+        Chip8_t::Byte y_{ byte_i/2 + y };
+        // Exit condition
+        if(y_ >= m_display.getHeight())
+        {
+            break;
+        }
+
+        drawByte(m_memory.read(m_I + byte_i), x, y_);
+        drawByte(m_memory.read(m_I + byte_i + 1), x + 8, y_);
+    }
+}
+
+void Chip8::drawByte(const Chip8_t::Byte& sprite, Chip8_t::Byte x, Chip8_t::Byte y)
+{
+    // Go through each bit in byte
+    for(signed char i{7}; i >= 0; --i)
+    {
+        Chip8_t::Byte bit_i{ (Chip8_t::Byte)(7 - i) };
+        Chip8_t::Byte mask{ (Chip8_t::Byte) (1 << i) };
+        Chip8_t::Byte masked_number{ (Chip8_t::Byte) (sprite & mask) };
+        bool bit{ (bool) ((Chip8_t::Byte)(masked_number >> i)) };
+
+        // Exit condition
+        if ( x + bit_i >= m_display.getWidth())
+        {
+            break;
+        }
+
+        // Draw
+        if(bit == true)
+        {
+            if(getPixel(x + bit_i, y) == true)
+            {
+                m_regs.write(0xF, 1);
+            }
+            m_display.flipPixel(x + bit_i, y);
+        }
+
+    }
+}
 
 void Chip8::jumpTo(Chip8_t::Word location)
 {
     m_PC = location;
 }
 
-Instruction<Chip8_t::Word> Chip8::fetch()
+Instruction<Chip8_t::Word> Chip8::fetch() // Connect
 {
     Instruction<Chip8_t::Word> operation{ std::array<Chip8_t::Byte, 2>{m_memory.read(m_PC), m_memory.read(m_PC + 1)} };
     m_PC += 2;
@@ -453,6 +668,12 @@ std::string Chip8::decode(const Instruction<Chip8_t::Word>& instruction)
             // Possible instructions:
             // 00E0 - Clear screen
             // 00EE - Set PC to the value at top of the stack
+            // 00CN - scroll content down N pixels
+            // 00FB - scroll content right 4 pixels
+            // 00FC - scroll content right 4 pixels
+            // 00FD - exit interpreter
+            // 00FE - switch to lores mode
+            // 00FF - switch to hires mode
             switch (instruction.getNibbles(2, 3))
             {
                 // 00E0 - Clear screen
@@ -466,6 +687,52 @@ std::string Chip8::decode(const Instruction<Chip8_t::Word>& instruction)
                 case 0xEE:
                 {
                     result = "00EE";
+                    break;
+                }
+
+                // 00FB - scroll content right 4 pixels
+                case 0xFB:
+                {
+                    result = "00FB";
+                    break;
+                }
+
+                // 00FC - scroll content right 4 pixels
+                case 0xFC:
+                {
+                    result = "00FC";
+                    break;
+                }
+
+                // 00FD - exit interpreter
+                case 0xFD:
+                {
+                    result = "00FD";
+                    break;
+                }
+
+                // 00FE - switch to lores mode
+                case 0xFE:
+                {
+                    result = "00FE";
+                    break;
+                }
+
+                // 00FF - switch to hires mode
+                case 0xFF:
+                {
+                    result = "00FF";
+                    break;
+                }
+
+                // 00CN - scroll content down N pixels
+                default:
+                {
+                    if(instruction.getNibble(2) != 0xC)
+                    {
+                        break;
+                    }
+                    result = "00CN";
                     break;
                 }
             }
@@ -759,6 +1026,23 @@ std::string Chip8::decode(const Instruction<Chip8_t::Word>& instruction)
                     result = "FX65";
                     break;
                 }
+
+                // -- SUPER CHIP --
+                case 0x30:
+                {
+                    result = "FX30";
+                    break;
+                }
+                case 0x75:
+                {
+                    result = "FX75";
+                    break;
+                }
+                case 0x85:
+                {
+                    result = "FX85";
+                    break;
+                }
             }
             break;
         }
@@ -797,6 +1081,7 @@ Chip8::Chip8() :
     // Initalize exec map
     m_exec_map = 
     {
+        // CHIP8
         {"00E0", std::bind(&Chip8::_00E0, this, std::placeholders::_1)},
         {"00EE", std::bind(&Chip8::_00EE, this, std::placeholders::_1)},
         {"0NNN", std::bind(&Chip8::_0NNN, this, std::placeholders::_1)},
@@ -832,6 +1117,17 @@ Chip8::Chip8() :
         {"FX33", std::bind(&Chip8::_FX33, this, std::placeholders::_1)},
         {"FX55", std::bind(&Chip8::_FX55, this, std::placeholders::_1)},
         {"FX65", std::bind(&Chip8::_FX65, this, std::placeholders::_1)},
+
+        // SCHIP
+        {"00CN", std::bind(&Chip8::_00CN, this, std::placeholders::_1)},
+        {"00FB", std::bind(&Chip8::_00FB, this, std::placeholders::_1)},
+        {"00FC", std::bind(&Chip8::_00FC, this, std::placeholders::_1)},
+        {"00FD", std::bind(&Chip8::_00FD, this, std::placeholders::_1)},
+        {"00FE", std::bind(&Chip8::_00FE, this, std::placeholders::_1)},
+        {"00FF", std::bind(&Chip8::_00FF, this, std::placeholders::_1)},
+        {"FX30", std::bind(&Chip8::_FX30, this, std::placeholders::_1)},
+        {"FX75", std::bind(&Chip8::_FX75, this, std::placeholders::_1)},
+        {"FX85", std::bind(&Chip8::_FX85, this, std::placeholders::_1)},
     };
 }
 
@@ -840,6 +1136,11 @@ Chip8::Chip8() :
 void Chip8::setBehaviourType(Chip8::BehaviourType type)
 {
     m_behaviour = type;
+}
+
+Chip8::BehaviourType Chip8::getBehaviourType()
+{
+    return m_behaviour;
 }
 
 bool Chip8::loadMemory(const std::string& path)
@@ -870,7 +1171,7 @@ bool Chip8::loadMemory(const std::string& path)
 
 void Chip8::clearMemory()
 {
-    Chip8_t::Byte m_font[]
+    std::array lowres_font
     {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -890,16 +1191,73 @@ void Chip8::clearMemory()
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
+    std::array highres_font
+    {
+        // 0
+        0x3C, 0x42, 0x81, 0x81, 0x81,
+        0x81, 0x81, 0x81, 0x42, 0x3C,
+        // 1
+        0x18, 0x38, 0x58, 0x18, 0x18,
+        0x18, 0x18, 0x18, 0x18, 0x7E,
+        // 2
+        0x3C, 0x42, 0x81, 0x01, 0x02,
+        0x0C, 0x30, 0x40, 0x80, 0xFF,
+        // 3
+        0x3C, 0x42, 0x81, 0x01, 0x06,
+        0x06, 0x01, 0x81, 0x42, 0x3C,
+        // 4
+        0x0C, 0x14, 0x24, 0x44, 0x84,
+        0xFF, 0x04, 0x04, 0x04, 0x04,
+        // 5
+        0xFF, 0x80, 0x80, 0xFC, 0x02,
+        0x01, 0x01, 0x81, 0x42, 0x3C,
+        // 6
+        0x3C, 0x42, 0x81, 0x80, 0xBC,
+        0xC2, 0x81, 0x81, 0x42, 0x3C,
+        // 7
+        0xFF, 0x01, 0x02, 0x04, 0x08,
+        0x10, 0x20, 0x40, 0x80, 0x80,
+        // 8
+        0x3C, 0x42, 0x81, 0x42, 0x3C,
+        0x42, 0x81, 0x81, 0x42, 0x3C,
+        // 9
+        0x3C, 0x42, 0x81, 0x81, 0x43,
+        0x3D, 0x01, 0x81, 0x42, 0x3C,
+        // A
+        0x3C, 0x42, 0x81, 0x81, 0xFF,
+        0x81, 0x81, 0x81, 0x42, 0x3C,
+        // B
+        0xFC, 0x42, 0x41, 0x42, 0x7C,
+        0x42, 0x41, 0x41, 0x42, 0xFC,
+        // C
+        0x3C, 0x42, 0x81, 0x80, 0x80,
+        0x80, 0x80, 0x81, 0x42, 0x3C,
+        // D
+        0xFC, 0x42, 0x41, 0x41, 0x41,
+        0x41, 0x41, 0x41, 0x42, 0xFC,
+        // E
+        0xFF, 0x80, 0x80, 0x80, 0xFC,
+        0x80, 0x80, 0x80, 0x80, 0xFF,
+        // F
+        0xFF, 0x80, 0x80, 0x80, 0xFC,
+        0x80, 0x80, 0x80, 0x80, 0x80
+    };
+
     // Set base memory
     m_memory = {Chip8Const::mem_size};
 
-    for(int i{}; i < 80; ++i)
+    for(int i{}; i < lowres_font.size(); ++i)
     {
-        m_memory.write(Chip8Const::font_begin + i,  m_font[i]);
+        m_memory.write(Chip8Const::lowres_font_begin + i,  lowres_font[i]);
+    }
+
+    for(int i{}; i < highres_font.size(); ++i)
+    {
+        m_memory.write(Chip8Const::highres_font_begin + i,  highres_font[i]);
     }
 
     // Set display
-    m_display = {Chip8Const::screen_width, Chip8Const::screen_height};
+    m_display = {Chip8Const::lowres_screen_width, Chip8Const::lowres_screen_height};
 
     // Set PC
     m_PC = Chip8Const::rom_mem_start;
@@ -1047,4 +1405,14 @@ std::uint8_t Chip8::getDelayTimerValue()
 std::uint8_t Chip8::getSoundTimerValue()
 {
     return m_sound_timer.get();
+}
+
+std::uint8_t Chip8::getScreenWidth()
+{
+    return m_display.getWidth();
+}
+
+std::uint8_t Chip8::getScreenHeight()
+{
+    return m_display.getHeight();
 }

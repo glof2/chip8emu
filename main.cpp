@@ -7,9 +7,9 @@
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
 
-#define RENDER_SCALE 16
-#define DEBUG_MENU_ADD_W 48 * RENDER_SCALE
-#define DEBUG_MENU_ADD_H 24 * RENDER_SCALE
+#define RENDER_SCALE 8
+#define DEBUG_MENU_ADD_W 48 * 2 * RENDER_SCALE
+#define DEBUG_MENU_ADD_H 24 * 2 * RENDER_SCALE
 #define MAX_ROM_DIR_LEN 128
 
 void displaySDLError(const std::string& msg)
@@ -21,11 +21,9 @@ void displaySDLError(const std::string& msg)
 
 int main()
 {
-    std::cout << "UPD:" << 1000.0 / 0.0 << '\n';
     // TODO:
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
-    // - Add debug controls with GUI (IMGUI)
     // - Add platforms (CHIP8 variants)
 
     // Prepare emulator
@@ -33,9 +31,12 @@ int main()
     double emu_last_update{ (double) Timer::getTime() };
     int emu_updates_per_second{0};
     char emu_rom_dir[MAX_ROM_DIR_LEN]{};
+    Chip8::BehaviourType emu_beh{ Chip8::BehaviourType::CHIP8 };
     Chip8::SaveState emu_save_state{emulator.getSaveState()};
     float emu_fg[3]{0xFF/255.f, 0xFF/255.f, 0xFF/255.f};
     float emu_bg[3]{0x00/255.f, 0x00/255.f, 0x00/255.f};
+
+    emulator.setBehaviourType(emu_beh);
 
     // Move this to a function for later cleanup (in case it fails in the middle!)
     // Prepare SDL
@@ -53,7 +54,7 @@ int main()
     }
 
     // Prepare window
-    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Chip8Const::screen_width * RENDER_SCALE + DEBUG_MENU_ADD_W, Chip8Const::screen_height * RENDER_SCALE + DEBUG_MENU_ADD_H, SDL_WINDOW_SHOWN) };
+    SDL_Window* window{ SDL_CreateWindow("EMULATOR", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, Chip8Const::highres_screen_width * RENDER_SCALE + DEBUG_MENU_ADD_W, Chip8Const::highres_screen_height * RENDER_SCALE + DEBUG_MENU_ADD_H, SDL_WINDOW_SHOWN) };
     if(window == NULL)
     {
         displaySDLError("Failed to create window!");
@@ -69,7 +70,7 @@ int main()
     }
 
     // Prepare target texture
-    SDL_Texture* target{SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, Chip8Const::screen_width, Chip8Const::screen_height)};
+    SDL_Texture* target{SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), SDL_TEXTUREACCESS_TARGET, Chip8Const::highres_screen_width, Chip8Const::highres_screen_height)};
     if(target == NULL)
     {
         displaySDLError("Failed to create texture for render scaling!");
@@ -161,6 +162,12 @@ int main()
 
         // -- Update --
 
+        // -- Update behaviour --
+        if(emu_beh != emulator.getBehaviourType())
+        {
+            emulator.setBehaviourType(emu_beh);
+        }
+
         // -- Emulate a step (or multiple)
         int64_t time_now{ Timer::getTime() };
         double emu_update_wait{ 1000.0 / double(emu_updates_per_second) };
@@ -212,9 +219,9 @@ int main()
 
         // Draw to texture
         SDL_SetRenderTarget(renderer, target);
-        for(int x{}; x < 64; ++x)
+        for(int x{}; x < emulator.getScreenWidth(); ++x)
         {
-            for(int y{}; y < 32; ++y)
+            for(int y{}; y < emulator.getScreenHeight(); ++y)
             {
                 bool pixel{ emulator.getPixel(x, y) };
                 if(pixel)
@@ -225,7 +232,14 @@ int main()
                 {
                     SDL_SetRenderDrawColor(renderer, emu_bg[0] * 0xFF, emu_bg[1] * 0xFF, emu_bg[2] * 0xFF, 0xFF);
                 }
-                SDL_RenderDrawPoint(renderer, x, y);   
+                int scale{ Chip8Const::highres_screen_height / emulator.getScreenHeight() };
+                //std::cout << "Scale: " << scale << '\n';
+                SDL_Rect rect{};
+                rect.x = x * scale;
+                rect.y = y * scale;
+                rect.w = scale;
+                rect.h = scale;
+                SDL_RenderDrawRect(renderer, &rect);
             }
         }
         SDL_SetRenderDrawColor(renderer, 0x42, 0x3E, 0x47, 0xFF);
@@ -235,8 +249,8 @@ int main()
         SDL_Rect scale_rect{};
         scale_rect.x = 0;
         scale_rect.y = 0;
-        scale_rect.w = Chip8Const::screen_width * RENDER_SCALE; 
-        scale_rect.h = Chip8Const::screen_height * RENDER_SCALE;
+        scale_rect.w = Chip8Const::highres_screen_width * RENDER_SCALE;
+        scale_rect.h = Chip8Const::highres_screen_height * RENDER_SCALE;
         SDL_RenderCopy(renderer, target, NULL, &scale_rect);
 
         // Handle IMGUI
@@ -383,6 +397,11 @@ int main()
 
             ImGui::Text(("Status: " + imgui_status).c_str());
 
+            // - Emulator settings -
+            ImGui::NewLine();
+            ImGui::Text("Emulator settings:");
+            ImGui::Combo("Behaviour", (int*)(&emu_beh), "CHIP8\0SUPERCHIP MODERN\0");
+
             // - Other settings -
             ImGui::NewLine();
             ImGui::Text("Other settings:");
@@ -449,7 +468,7 @@ int main()
             // Sound timer
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Delay timer");
+            ImGui::Text("Sound timer");
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%u", emulator.getSoundTimerValue());
 

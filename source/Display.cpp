@@ -1,9 +1,27 @@
 #include "../header/Display.hpp"
 #include <iostream>
 
+// --- Private member functions ---
+
+void Display::update()
+{
+    if(m_data.size() != m_height)
+    {
+        m_data.resize(m_height);
+    }
+
+    for(std::size_t i{}; i < m_data.size(); ++i)
+    {
+        if ((m_data[i]).size() != m_width)
+        {
+            (m_data[i]).resize(m_width);
+        }
+    }
+}
+
 // --- Constructors ---
 
-Display::Display(Chip8_t::Word width, Chip8_t::Word height) : m_data(height, std::vector<bool>(width, false)) {}
+Display::Display(Chip8_t::Word width, Chip8_t::Word height) : m_data(height, std::vector<bool>(width, false)), m_width{width}, m_height{height} {}
 
 // --- Member functions ---
 
@@ -56,18 +74,17 @@ void Display::setAll(bool state)
 
 Chip8_t::Word Display::getWidth()
 {
-    if(getHeight() > 0)
-    {
-        return (m_data[0]).size();
-    }
-    else
-    {
-        std::cout << "Couldn't get Display width properly because the Display height is not > 0!\n";
-        return 0;
-    }
+    return m_width;
 }
 
 Chip8_t::Word Display::getHeight()
 {
-    return m_data.size();
+    return m_height;
+}
+
+void Display::setSize(const Chip8_t::Word& width, const Chip8_t::Word& height)
+{
+    m_width = width;
+    m_height = height;
+    update();
 }
