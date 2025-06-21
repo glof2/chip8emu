@@ -1,3 +1,4 @@
+#include <array>
 #include <iostream>
 #include <map>
 #include <SDL2/SDL.h>
@@ -6,6 +7,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
+#include <string>
 
 #define RENDER_SCALE 8
 #define DEBUG_MENU_ADD_W 48 * 2 * RENDER_SCALE
@@ -21,6 +23,7 @@ void displaySDLError(const std::string& msg)
 
 int main()
 {
+    
     // TODO:
     // - CHIP8 lib cleanup and comments
     // - Main file cleanup and comments
@@ -96,7 +99,29 @@ int main()
     // Create imgui settings vars
     std::string imgui_status{};
     int imgui_mem_view_follow{};
-    double imgui_updates_per_sec_actual{emu_updates_per_second};
+    double imgui_updates_per_sec_actual{(double)emu_updates_per_second};
+
+    std::vector<std::pair<std::string, Chip8::Quirks>> imgui_quirks_translations
+    {
+        // -- Universal --
+        {"VF reset", Chip8::Quirks::VF_RESET},
+        {"VX Shift", Chip8::Quirks::VX_SHIFT},        
+        {"FX55, FX65: I is incremented by X", Chip8::Quirks::I_INCREMENT},
+        {"FX55, FX65: I is incremented by X + 1 (only if I inc is on)", Chip8::Quirks::I_INCREMENT_PLUS_1},
+        {"BXNN instead of BNNN", Chip8::Quirks::BXNN},
+
+        // -- Super chip --
+        {"Half scroll in lowres", Chip8::Quirks::LOWRES_HALF_SCROLL},
+        {"Clear screen on resolution change", Chip8::Quirks::RESIZE_CLEAR_SCREEN},
+        {"DXY0: Draw 8x16 in lowres", Chip8::Quirks::LOWRES_8X16},
+        {"FX75, FX85: V0 to V7 max", Chip8::Quirks::STORAGE_LOAD_MAX},
+    };
+
+    std::map<Chip8::Quirks, bool> imgui_quirk_states{};
+    for(const auto& quirk_trans : imgui_quirks_translations)
+    {
+        imgui_quirk_states.insert({quirk_trans.second, emulator.getQuirkState((Chip8_t::Word)quirk_trans.second)});
+    }
 
     // Play sound
     Mix_VolumeMusic(0);
@@ -401,6 +426,18 @@ int main()
             ImGui::NewLine();
             ImGui::Text("Emulator settings:");
             ImGui::Combo("Behaviour", (int*)(&emu_beh), "CHIP8\0SUPERCHIP MODERN\0");
+
+            ImGui::Text("Quirks:");
+            for(std::pair<std::string, Chip8::Quirks>& quirk_trans : imgui_quirks_translations)
+            {
+                imgui_quirk_states.at(quirk_trans.second) = emulator.getQuirkState(quirk_trans.second);
+                ImGui::Checkbox((quirk_trans.first).c_str(), &(imgui_quirk_states.at(quirk_trans.second)));
+
+                if(imgui_quirk_states.at(quirk_trans.second) != emulator.getQuirkState(quirk_trans.second))
+                {
+                    emulator.setQuirkState(quirk_trans.second, imgui_quirk_states.at(quirk_trans.second));
+                }
+            }
 
             // - Other settings -
             ImGui::NewLine();

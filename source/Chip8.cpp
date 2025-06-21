@@ -24,7 +24,7 @@ void Chip8::_00EE(const Instruction<Chip8_t::Word>&)
 // 0NNN - not implemented!, argument name omitted to make compiler shut up
 void Chip8::_0NNN(const Instruction<Chip8_t::Word>&)
 {
-    std::cout << "UNINMPLEMENTED!\n";
+    std::cout << "0NNN - UNINMPLEMENTED!\n";
 }
 
 // 1NNN - Jump to NNN
@@ -107,7 +107,7 @@ void Chip8::_8XY1(const Instruction<Chip8_t::Word>& instruction)
     Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
     m_regs.write(instruction.getNibble(1), vx | vy);
 
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Chip8::Quirks::VF_RESET))
     {
         m_regs.write(0xF, 0);
     }
@@ -120,7 +120,7 @@ void Chip8::_8XY2(const Instruction<Chip8_t::Word>& instruction)
     Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
     m_regs.write(instruction.getNibble(1), vx & vy);
 
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Chip8::Quirks::VF_RESET))
     {
         m_regs.write(0xF, 0);
     }
@@ -133,7 +133,7 @@ void Chip8::_8XY3(const Instruction<Chip8_t::Word>& instruction)
     Chip8_t::Byte vy{ m_regs.read(instruction.getNibble(2)) };
     m_regs.write(instruction.getNibble(1), vx ^ vy);
 
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Chip8::Quirks::VF_RESET))
     {
         m_regs.write(0xF, 0);
     }
@@ -173,7 +173,7 @@ void Chip8::_8XY7(const Instruction<Chip8_t::Word>& instruction)
 void Chip8::_8XY6(const Instruction<Chip8_t::Word>& instruction)
 {
     Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(!getQuirkState(Chip8::Quirks::VX_SHIFT))
     {
         vx = m_regs.read(instruction.getNibble(2));
     }
@@ -189,7 +189,7 @@ void Chip8::_8XY6(const Instruction<Chip8_t::Word>& instruction)
 void Chip8::_8XYE(const Instruction<Chip8_t::Word>& instruction)
 {
     Chip8_t::Byte vx{ m_regs.read(instruction.getNibble(1)) };
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(!getQuirkState(Chip8::Quirks::VX_SHIFT))
     {
         vx = m_regs.read(instruction.getNibble(2));
     }
@@ -227,13 +227,13 @@ void Chip8::_BXNN(const Instruction<Chip8_t::Word>& instruction)
     Chip8_t::Word dest{ (Chip8_t::Word) instruction.getNibbles(1, 3)};
     
     // Add the appropriate register
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Chip8::Quirks::BXNN))
     {
-        dest += m_regs.read(0x0);
+        dest += m_regs.read(instruction.getNibble(1));
     }
     else
     {
-        dest += m_regs.read(instruction.getNibble(1));
+        dest += m_regs.read(0x0);
     }
     
     // Jump to it
@@ -380,9 +380,13 @@ void Chip8::_FX55(const Instruction<Chip8_t::Word>& instruction)
         m_memory.write(m_I + i, m_regs.read(i));
     }
 
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Quirks::I_INCREMENT))
     {
-        m_I += instruction.getNibble(1) + 1;
+        m_I += instruction.getNibble(1);
+        if(getQuirkState(Quirks::I_INCREMENT_PLUS_1))
+        {
+            m_I += 1;
+        }
     }
 }
 
@@ -399,9 +403,13 @@ void Chip8::_FX65(const Instruction<Chip8_t::Word>& instruction)
         m_regs.write(i, m_memory.read(m_I + i));
     }
 
-    if(m_behaviour == Chip8::BehaviourType::CHIP8)
+    if(getQuirkState(Quirks::I_INCREMENT))
     {
-        m_I += instruction.getNibble(1) + 1;
+        m_I += instruction.getNibble(1);
+        if(getQuirkState(Quirks::I_INCREMENT_PLUS_1))
+        {
+            m_I += 1;
+        }
     }
 }
 
@@ -418,6 +426,13 @@ void Chip8::_00CN(const Instruction<Chip8_t::Word>& instr)
 
 
     Chip8_t::Byte n{instr.getNibble(3)};
+
+    // Only scroll half pixels quirks
+    if(getQuirkState(Quirks::LOWRES_HALF_SCROLL) && m_display.getHeight() == Chip8Const::lowres_screen_height)
+    {
+        n /= 2;
+    }
+
     if (n == 0)
     {
         return;
@@ -450,7 +465,13 @@ void Chip8::_00FB(const Instruction<Chip8_t::Word>& instr)
         return;
     }
 
-    constexpr std::uint8_t shift_amount{4};
+    std::uint8_t shift_amount{4};
+
+    // Only scroll half pixels quirks
+    if(getQuirkState(Quirks::LOWRES_HALF_SCROLL) && m_display.getHeight() == Chip8Const::lowres_screen_height)
+    {
+        shift_amount /= 2;
+    }
 
     // Shift pixels
 
@@ -478,7 +499,13 @@ void Chip8::_00FC(const Instruction<Chip8_t::Word>& instr)
         return;
     }
 
-    constexpr std::uint8_t shift_amount{4};
+    std::uint8_t shift_amount{4};
+
+    // Only scroll half pixels quirks
+    if(getQuirkState(Quirks::LOWRES_HALF_SCROLL) && m_display.getHeight() == Chip8Const::lowres_screen_height)
+    {
+        shift_amount /= 2;
+    }
 
     // Shift pixels
     // The loop goes from the leftmost column of the display (plus N) to the rightmost column
@@ -518,7 +545,12 @@ void Chip8::_00FE(const Instruction<Chip8_t::Word>& instr)
         return;
     }
     m_display.setSize(Chip8Const::lowres_screen_width, Chip8Const::lowres_screen_height);
-    m_display.setAll(0);
+    
+    if(getQuirkState(Quirks::RESIZE_CLEAR_SCREEN))
+    {
+        m_display.setAll(0);
+    }
+    
 }
 
 // 00FF - Switch to high res mode and (SCHIP modern) clear the screen
@@ -531,7 +563,11 @@ void Chip8::_00FF(const Instruction<Chip8_t::Word>& instr)
         return;
     }
     m_display.setSize(Chip8Const::highres_screen_width, Chip8Const::highres_screen_height);
-    m_display.setAll(0);
+
+    if(getQuirkState(Quirks::RESIZE_CLEAR_SCREEN))
+    {
+        m_display.setAll(0);
+    }
 }
 
 // FX30 - Set I to the 10 lines high font sprite for VX
@@ -597,13 +633,20 @@ void Chip8::drawRegular(const Chip8_t::Byte& x, const Chip8_t::Byte& y, const Ch
 
 void Chip8::drawSChipSpecial(const Chip8_t::Byte& x, const Chip8_t::Byte& y)
 {
+    // Check quirk
+    if(getQuirkState(Quirks::LOWRES_8X16))
+    {
+        drawRegular(x, y, 16);
+        return;
+    }
+
     // Set VF register
     m_regs.write(0xF, 0);
 
     // Draw a 16x16 spire
     for(Chip8_t::Byte byte_i{}; byte_i < 32; byte_i += 2)
     {
-        Chip8_t::Byte y_{ byte_i/2 + y };
+        Chip8_t::Byte y_{ (Chip8_t::Byte)(byte_i/2 + y) };
         // Exit condition
         if(y_ >= m_display.getHeight())
         {
@@ -1074,7 +1117,8 @@ Chip8::Chip8() :
 //    m_sound_timer{}, 
 //    m_regs{},
 //    m_key_states{},
-    m_behaviour{Chip8::BehaviourType::CHIP8}
+    m_behaviour{Chip8::BehaviourType::CHIP8},
+    m_quirks{(Chip8_t::Word)Chip8::QuirkPresets::CHIP8}
 {
     clearMemory();
 
@@ -1136,6 +1180,22 @@ Chip8::Chip8() :
 void Chip8::setBehaviourType(Chip8::BehaviourType type)
 {
     m_behaviour = type;
+    switch (m_behaviour) 
+    {
+        case (Chip8::BehaviourType::CHIP8):
+        {
+            setQuirks(0);
+            setQuirkState(Chip8::QuirkPresets::CHIP8, true);
+            break;
+        }
+        case (Chip8::BehaviourType::SUPERCHIP):
+        {
+            setQuirks(0);
+            setQuirkState(Chip8::QuirkPresets::SUPERCHIP, true);
+            break;
+        }
+
+    }
 }
 
 Chip8::BehaviourType Chip8::getBehaviourType()
@@ -1415,4 +1475,31 @@ std::uint8_t Chip8::getScreenWidth()
 std::uint8_t Chip8::getScreenHeight()
 {
     return m_display.getHeight();
+}
+
+bool Chip8::getQuirkState(const Chip8_t::Word& which)
+{
+    return (m_quirks & which) > 0;
+}
+
+void Chip8::setQuirkState(const Chip8_t::Word& which, bool state)
+{
+    if (state == true)
+    {
+        m_quirks |= which;
+    }
+    else 
+    {
+        m_quirks &= ~which;
+    }
+}
+
+void Chip8::setQuirks(Chip8_t::Word what)
+{
+    m_quirks = what;
+}
+
+Chip8_t::Word Chip8::getQuirks()
+{
+    return m_quirks;
 }

@@ -4,6 +4,7 @@ project(emulator)
 # Choose C++ standard
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Debug flag (can be overridden with -DDEBUG=ON)
 option(DEBUG "Enable debug mode" OFF)
@@ -37,3 +38,4 @@ pkg_check_modules(SDL2_mixer REQUIRED SDL2_mixer)
 
 target_include_directories(emulator PRIVATE ${SDL2_INCLUDE_DIRS} ${SDL2_mixer_INCLUDE_DIRS})
 target_link_libraries(emulator ${SDL2_LIBRARIES} ${SDL2_mixer_LIBRARIES})
+

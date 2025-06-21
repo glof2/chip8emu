@@ -1,5 +1,6 @@
 #ifndef CHIP8_HPP
 #define CHIP8_HPP
+#include <cstdint>
 #include <string>
 #include <stack>
 #include <array>
@@ -81,6 +82,32 @@ public:
         INVALID,
     };
 
+    enum Quirks
+    {
+        LOWRES_HALF_SCROLL =            0b1,
+        // ZERO_SCROLL_PERMITTED
+        RESIZE_CLEAR_SCREEN =           0b10,
+        // CHIP8E - ONLY X <= Y
+        VF_RESET =                      0b100,
+        VX_SHIFT =                      0b1000,
+        // PIXEL_WRAP,
+        // DISPLAY_WAIT,
+        // ONLY_HIGHRES,
+        // VF_SPRITE_ROWS,
+        LOWRES_8X16 =                   0b10000,
+        I_INCREMENT =                   0b100000,
+        I_INCREMENT_PLUS_1 =            0b1000000,
+        STORAGE_LOAD_MAX =              0b10000000,
+        BXNN =                          0b100000000,
+    };
+
+
+    enum QuirkPresets
+    {
+        CHIP8 = Quirks::I_INCREMENT_PLUS_1 | Quirks::I_INCREMENT | Quirks::VF_RESET,
+        SUPERCHIP = Quirks::BXNN | Quirks::RESIZE_CLEAR_SCREEN | Quirks::VX_SHIFT,
+    };
+
     struct SaveState
     {
         Memory memory{Chip8Const::mem_size};
@@ -89,6 +116,8 @@ public:
         Chip8_t::Word I{};
         std::stack<Chip8_t::Word> stack{};
         VarRegs regs{Chip8Const::reg_amount};
+
+        Chip8_t::Word quirks{};
     };
 private:
     Memory m_memory{Chip8Const::mem_size};
@@ -100,8 +129,12 @@ private:
     Timer m_sound_timer{}; 
     VarRegs m_regs{Chip8Const::reg_amount};
     std::array<KeyState, Chip8Const::buttons> m_key_states{};
-    BehaviourType m_behaviour{ BehaviourType::CHIP8 };
+    
+    BehaviourType m_behaviour{};
+    Chip8_t::Word m_quirks{};
     std::map<std::string, std::function<void(const Instruction<Chip8_t::Word>&)>> m_exec_map{};
+
+
 
     // --- Private member functions ---
 
@@ -241,6 +274,14 @@ public:
     //  Description:    returns the height of the emulators' screen
     //  Return:         the height of the emulator's screen
     std::uint8_t getScreenHeight();
+
+    // 
+    bool getQuirkState(const Chip8_t::Word& which);
+
+    void setQuirkState(const Chip8_t::Word& which, bool state);
+
+    void setQuirks(Chip8_t::Word what);
+    Chip8_t::Word getQuirks();
 };
 
 #endif
